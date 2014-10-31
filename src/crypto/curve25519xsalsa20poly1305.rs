@@ -166,10 +166,11 @@ pub fn open(c: &[u8],
  * nonce `n`. It returns a plaintext `Some(m)`.  If the ciphertext
  * fails verification, `open_inplace()` returns `None`.
  *
- * `open_inplace()` requires that the first `BOXZERO.len()` bytes of the message
- * are equal to 0, otherwise it returns `None`.
- * `open_inplace()` will modify the ciphertext in place, but returns a slice
- * pointing to the start of the actual plaintext (minus padding).
+ * `open_inplace()` requires that the first `BOXZERO.len()` bytes of
+ * the ciphertext are equal to 0, otherwise it returns `None`.
+ * `open_inplace()` will modify the ciphertext in place, but returns a
+ * slice pointing to the start of the actual plaintext (minus
+ * padding).
  */
 pub fn open_inplace<'a>(c: &'a mut [u8],
                         &Nonce(n): &Nonce,
@@ -278,7 +279,7 @@ pub fn open_precomputed(c: &[u8],
  * If the ciphertext fails verification, `open_precomputed()` returns `None`.
  *
  * `open_precomputed_inplace()` requires that the first
- * `BOXZERO.len()` bytes of the message are equal to 0, otherwise it
+ * `BOXZERO.len()` bytes of the ciphertext are equal to 0, otherwise it
  * returns `None`.  `open_precomputed_inplace()` will modify the
  * ciphertext in place, but returns a slice pointing to the start of
  * the actual plaintext (minus padding).

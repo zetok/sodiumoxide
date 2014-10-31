@@ -133,7 +133,7 @@ pub fn open(c: &[u8],
  * `k` and a nonce `n`.  It returns a plaintext `Some(m)`.  If the
  * ciphertext fails verification, `open_inplace()` returns `None`.
  *
- * `open_inplace()` requires that the first `BOXZERO.len()` bytes of the message
+ * `open_inplace()` requires that the first `BOXZERO.len()` bytes of the ciphertext 
  * are equal to 0, otherwise it returns `None`.
  * `open_inplace()` will modify the ciphertext in place, but returns a slice
  * pointing to the start of the actual plaintext (minus padding).
