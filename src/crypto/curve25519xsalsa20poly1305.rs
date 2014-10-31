@@ -47,8 +47,8 @@ pub const PUBLICKEYBYTES: uint = 32;
 pub const SECRETKEYBYTES: uint = 32;
 pub const NONCEBYTES: uint = 24;
 pub const PRECOMPUTEDKEYBYTES: uint = 32;
-const ZEROBYTES: uint = 32;
-const BOXZEROBYTES: uint = 16;
+pub const ZERO: [u8, ..32] = [0, ..32];
+pub const BOXZERO: [u8, ..16] = [0, ..16];
 
 /**
  * `PublicKey` for asymmetric authenticated encryption
@@ -111,20 +111,39 @@ pub fn gen_nonce() -> Nonce {
  * the receivers public key `pk` and a nonce `n`. It returns a ciphertext `c`.
  */
 pub fn seal(m: &[u8],
-            &Nonce(n): &Nonce,
-            &PublicKey(pk): &PublicKey,
-            &SecretKey(sk): &SecretKey) -> Vec<u8> {
-    let (c, _) = marshal(m, ZEROBYTES, BOXZEROBYTES, |dst, src, len| {
-        unsafe {
-            crypto_box_curve25519xsalsa20poly1305(dst,
-                                                  src,
-                                                  len,
-                                                  n.as_ptr(),
-                                                  pk.as_ptr(),
-                                                  sk.as_ptr());
-        }
-    });
-    c
+            n: &Nonce,
+            pk: &PublicKey,
+            sk: &SecretKey) -> Vec<u8> {
+    marshal(m, ZERO, |b| {
+        seal_inplace(b.as_mut_slice(), n, pk, sk)
+    }).unwrap()
+}
+
+/**
+ * `seal_inplace()` encrypts and authenticates a message `m` using the senders secret key `sk`,
+ * the receivers public key `pk` and a nonce `n`. It returns a ciphertext `Some(c)`.
+ *
+ * `seal_inplace()` requires that the first `ZERO.len()` bytes of the message
+ * are equal to 0, otherwise it returns `None`.
+ * `seal_inplace()` will encrypt the message in place, but returns a slice
+ * pointing to the the actual ciphertext (minus padding).
+ */
+pub fn seal_inplace<'a>(m: &'a mut [u8],
+                        &Nonce(n): &Nonce,
+                        &PublicKey(pk): &PublicKey,
+                        &SecretKey(sk): &SecretKey) -> Option<&'a [u8]> {
+    if m.slice_to(ZERO.len()) != ZERO {
+        return None
+    }
+    unsafe {
+        crypto_box_curve25519xsalsa20poly1305(m.as_mut_ptr(),
+                                              m.as_ptr(),
+                                              m.len() as c_ulonglong,
+                                              n.as_ptr(),
+                                              pk.as_ptr(),
+                                              sk.as_ptr());
+    }
+    Some(m.slice_from(BOXZERO.len()))
 }
 
 /**
@@ -133,26 +152,45 @@ pub fn seal(m: &[u8],
  * If the ciphertext fails verification, `open()` returns `None`.
  */
 pub fn open(c: &[u8],
-            &Nonce(n): &Nonce,
-            &PublicKey(pk): &PublicKey,
-            &SecretKey(sk): &SecretKey) -> Option<Vec<u8>> {
-    if c.len() < BOXZEROBYTES {
+            n: &Nonce,
+            pk: &PublicKey,
+            sk: &SecretKey) -> Option<Vec<u8>> {
+    marshal(c, BOXZERO, |b| {
+        open_inplace(b.as_mut_slice(), n, pk, sk)
+    })
+}
+
+/**
+ * `open_inplace()` verifies and decrypts a ciphertext `c` using the
+ * receiver's secret key `sk`, the senders public key `pk`, and a
+ * nonce `n`. It returns a plaintext `Some(m)`.  If the ciphertext
+ * fails verification, `open_inplace()` returns `None`.
+ *
+ * `open_inplace()` requires that the first `BOXZERO.len()` bytes of the message
+ * are equal to 0, otherwise it returns `None`.
+ * `open_inplace()` will modify the ciphertext in place, but returns a slice
+ * pointing to the start of the actual plaintext (minus padding).
+ */
+pub fn open_inplace<'a>(c: &'a mut [u8],
+                        &Nonce(n): &Nonce,
+                        &PublicKey(pk): &PublicKey,
+                        &SecretKey(sk): &SecretKey) -> Option<&'a [u8]> {
+    if c.slice_to(BOXZERO.len()) != BOXZERO {
         return None
     }
-    let (m, ret) = marshal(c, BOXZEROBYTES, ZEROBYTES, |dst, src, len| {
-        unsafe {
-            crypto_box_curve25519xsalsa20poly1305_open(dst,
-                                                       src,
-                                                       len,
-                                                       n.as_ptr(),
-                                                       pk.as_ptr(),
-                                                       sk.as_ptr())
+    
+    unsafe {
+        let ret = crypto_box_curve25519xsalsa20poly1305_open(c.as_mut_ptr(),
+                                                             c.as_ptr(),
+                                                             c.len() as c_ulonglong,
+                                                             n.as_ptr(),
+                                                             pk.as_ptr(),
+                                                             sk.as_ptr());
+        if ret == 0 {
+            Some(c.slice_from(ZERO.len()))
+        } else {
+            None
         }
-    });
-    if ret == 0 {
-        Some(m)
-    } else {
-        None
     }
 }
 
@@ -189,44 +227,81 @@ pub fn precompute(&PublicKey(pk): &PublicKey,
  * and a nonce `n`. It returns a ciphertext `c`.
  */
 pub fn seal_precomputed(m: &[u8],
-                        &Nonce(n): &Nonce,
-                        &PrecomputedKey(k): &PrecomputedKey) -> Vec<u8> {
-    let (c, _) = marshal(m, ZEROBYTES, BOXZEROBYTES, |dst, src, len| {
-        unsafe {
-            crypto_box_curve25519xsalsa20poly1305_afternm(dst,
-                                                          src,
-                                                          len,
-                                                          n.as_ptr(),
-                                                          k.as_ptr());
-        }
-    });
-    c
+                        n: &Nonce,
+                        k: &PrecomputedKey) -> Vec<u8> {
+    marshal(m, ZERO, |b| {
+        seal_precomputed_inplace(b.as_mut_slice(), n, k)
+    }).unwrap()
 }
 
+/**
+ * `seal_precomputed_inplace()` encrypts and authenticates a message `m` using a precomputed key `k`,
+ * and a nonce `n`. It returns a ciphertext `c`.
+ *
+ * `seal_precomputed_inplace()` requires that the first `ZERO.len()` bytes of the message
+ * are equal to 0, otherwise it returns `None`.
+ * `seal_inplace()` will modify the message in place, but returns a slice
+ * pointing to the start of the actual ciphertext (minus padding).
+ */
+pub fn seal_precomputed_inplace<'a>(m: &'a mut [u8],
+                                    &Nonce(n): &Nonce,
+                                    &PrecomputedKey(k): &PrecomputedKey
+                                    ) -> Option<&'a [u8]> {
+    if m.slice_to(ZERO.len()) != ZERO {
+        return None
+    }
+    unsafe {
+        crypto_box_curve25519xsalsa20poly1305_afternm(m.as_mut_ptr(),
+                                                      m.as_ptr(),
+                                                      m.len() as c_ulonglong,
+                                                      n.as_ptr(),
+                                                      k.as_ptr());
+    }
+    Some(m.slice_from(BOXZERO.len()))
+}
 /**
  * `open_precomputed()` verifies and decrypts a ciphertext `c` using a precomputed
  * key `k` and a nonce `n`. It returns a plaintext `Some(m)`.
  * If the ciphertext fails verification, `open_precomputed()` returns `None`.
  */
 pub fn open_precomputed(c: &[u8],
-                        &Nonce(n): &Nonce,
-                        &PrecomputedKey(k): &PrecomputedKey) -> Option<Vec<u8>> {
-    if c.len() < BOXZEROBYTES {
+                        n: &Nonce,
+                        k: &PrecomputedKey) -> Option<Vec<u8>> {
+    marshal(c, BOXZERO, |b| {
+        open_precomputed_inplace(b.as_mut_slice(), n, k)
+    })
+}
+
+/**
+ * `open_precomputed_inplace()` verifies and decrypts a ciphertext `c` using a precomputed
+ * key `k` and a nonce `n`. It returns a plaintext `Some(m)`.
+ * If the ciphertext fails verification, `open_precomputed()` returns `None`.
+ *
+ * `open_precomputed_inplace()` requires that the first
+ * `BOXZERO.len()` bytes of the message are equal to 0, otherwise it
+ * returns `None`.  `open_precomputed_inplace()` will modify the
+ * ciphertext in place, but returns a slice pointing to the start of
+ * the actual plaintext (minus padding).
+ */
+pub fn open_precomputed_inplace<'a>(c: &'a mut [u8],
+                                    &Nonce(n): &Nonce,
+                                    &PrecomputedKey(k): &PrecomputedKey
+                                    ) -> Option<&'a [u8]> {
+    if c.slice_to(BOXZERO.len()) != BOXZERO {
         return None
     }
-    let (m, ret) = marshal(c, BOXZEROBYTES, ZEROBYTES, |dst, src, len| {
-        unsafe {
-            crypto_box_curve25519xsalsa20poly1305_open_afternm(dst,
-                                                               src,
-                                                               len,
-                                                               n.as_ptr(),
-                                                               k.as_ptr())
+    unsafe {
+        let ret = crypto_box_curve25519xsalsa20poly1305_open_afternm(
+            c.as_mut_ptr(),
+            c.as_ptr(),
+            c.len() as c_ulonglong,
+            n.as_ptr(),
+            k.as_ptr());
+        if ret == 0 {
+            Some(c.slice_from(ZERO.len()))
+        } else {
+            None
         }
-    });
-    if ret == 0 {
-        Some(m)
-    } else {
-        None
     }
 }
 

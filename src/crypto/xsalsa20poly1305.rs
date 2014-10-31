@@ -46,8 +46,8 @@ pub struct Nonce(pub [u8, ..NONCEBYTES]);
 
 newtype_clone!(Nonce)
 
-const ZEROBYTES: uint = 32;
-const BOXZEROBYTES: uint = 16;
+pub const ZERO: [u8, ..32] = [0, ..32];
+pub const BOXZERO: [u8, ..16] = [0, ..16];
 
 /**
  * `gen_key()` randomly generates a secret key
@@ -80,43 +80,85 @@ pub fn gen_nonce() -> Nonce {
  * nonce `n`.  It returns a ciphertext `c`.
  */
 pub fn seal(m: &[u8],
-            &Nonce(n): &Nonce,
-            &Key(k): &Key) -> Vec<u8> {
-    let (c, _) = marshal(m, ZEROBYTES, BOXZEROBYTES, |dst, src, len| {
-        unsafe {
-            crypto_secretbox_xsalsa20poly1305(dst, src, len, n.as_ptr(), k.as_ptr())
-        }
-    });
-    c
+            n: &Nonce,
+            k: &Key) -> Vec<u8> {
+    marshal(m, ZERO, |b| {
+        seal_inplace(b.as_mut_slice(), n, k)
+    }).unwrap()
 }
 
 /**
- * `open()` verifies and decrypts a ciphertext `c` using a secret key `k` and a nonce `n`.
+ * `seal_inplace()` encrypts and authenticates a message `m` using a secret key `k` and a
+ * nonce `n`.  It returns a ciphertext `c`.
+ *
+ * `seal_inplace()` requires that the first `ZERO.len()` bytes of the
+ * message are equal to 0, otherwise it returns `None`.
+ * `seal_inplace()` will modify the message in place, but returns a
+ * slice pointing to the start of the actual ciphertext (minus
+ * padding).
+ */
+pub fn seal_inplace<'a>(m: &'a mut [u8],
+                        &Nonce(n): &Nonce,
+                        &Key(k): &Key) -> Option<&'a [u8]> {
+    if m.slice_to(ZERO.len()) != ZERO {
+        return None
+    } 
+
+    unsafe {
+        crypto_secretbox_xsalsa20poly1305(m.as_mut_ptr(),
+                                          m.as_ptr(),
+                                          m.len() as c_ulonglong,
+                                          n.as_ptr(),
+                                          k.as_ptr());
+    }
+    Some(m.slice_from(BOXZERO.len()))
+}
+
+/**
+ * `open()` verifies and decrypts a ciphertext `c` using a secret key
+ * `k` and a nonce `n`.
  * It returns a plaintext `Some(m)`.
  * If the ciphertext fails verification, `open()` returns `None`.
  */
 pub fn open(c: &[u8],
-            &Nonce(n): &Nonce,
-            &Key(k): &Key) -> Option<Vec<u8>> {
-    if c.len() < BOXZEROBYTES {
-        return None
-    }
-    let (m, ret) = marshal(c, BOXZEROBYTES, ZEROBYTES, |dst, src, len| {
-        unsafe {
-            crypto_secretbox_xsalsa20poly1305_open(dst,
-                                                   src,
-                                                   len,
-                                                   n.as_ptr(),
-                                                   k.as_ptr())
-        }
-    });
-    if ret == 0 {
-        Some(m)
-    } else {
-        None
-    }
+            n: &Nonce,
+            k: &Key) -> Option<Vec<u8>> {
+    marshal(c, BOXZERO, |b| {
+        open_inplace(b.as_mut_slice(), n, k)
+    })
 }
 
+/**
+ * `open_inplace()` verifies and decrypts a ciphertext `c` using a secret key
+ * `k` and a nonce `n`.  It returns a plaintext `Some(m)`.  If the
+ * ciphertext fails verification, `open_inplace()` returns `None`.
+ *
+ * `open_inplace()` requires that the first `BOXZERO.len()` bytes of the message
+ * are equal to 0, otherwise it returns `None`.
+ * `open_inplace()` will modify the ciphertext in place, but returns a slice
+ * pointing to the start of the actual plaintext (minus padding).
+ */
+pub fn open_inplace<'a>(c: &'a mut [u8],
+                        &Nonce(n): &Nonce,
+                        &Key(k): &Key) -> Option<&'a [u8]> {
+    if c.slice_to(BOXZERO.len()) != BOXZERO {
+        return None
+    }
+
+    unsafe {
+        let ret = crypto_secretbox_xsalsa20poly1305_open(c.as_mut_ptr(),
+                                                         c.as_ptr(),
+                                                         c.len() as c_ulonglong,
+                                                         n.as_ptr(),
+                                                         k.as_ptr());
+        if ret == 0 {
+            Some(c.slice_from(ZERO.len()))
+        } else {
+            None
+        }
+    }
+}
+                        
 #[test]
 fn test_seal_open() {
     use randombytes::randombytes;

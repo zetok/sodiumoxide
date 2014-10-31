@@ -1,22 +1,20 @@
 #![macro_escape]
 
-use libc::c_ulonglong;
-
 #[doc(hidden)]
-pub fn marshal<T>(buf: &[u8],
-                  padbefore: uint,
-                  bytestodrop: uint,
-                  f: |*mut u8, *const u8, c_ulonglong| -> T
-                 ) -> (Vec<u8>, T) {
-    let mut dst = Vec::with_capacity(buf.len() + padbefore);
-    for _ in range(0, padbefore) {
-        dst.push(0);
-    }
-    dst.push_all(buf);
-    let pdst = dst.as_mut_ptr();
-    let psrc = dst.as_ptr();
-    let res = f(pdst, psrc, dst.len() as c_ulonglong);
-    (dst.into_iter().skip(bytestodrop).collect(), res)
+pub fn marshal<'a>(m: &'a [u8],
+                   padding: &[u8],
+                   f: |&mut [u8]| -> Option<&'a [u8]>
+                   ) -> Option<Vec<u8>> {
+    let mut buf = Vec::with_capacity(padding.len() + m.len());
+    buf.push_all(padding);
+    buf.push_all(m);
+    let c = match f(buf.as_mut_slice()) {
+        None => return None,
+        Some(c) => c
+    };
+    let mut dst = Vec::with_capacity(c.len());
+    dst.push_all(c);
+    Some(dst)
 }
 
 macro_rules! newtype_clone (($newtype:ident) => (
