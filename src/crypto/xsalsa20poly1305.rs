@@ -153,6 +153,7 @@ pub fn open_inplace<'a>(c: &'a mut [u8],
                                                          c.len() as c_ulonglong,
                                                          n.as_ptr(),
                                                          k.as_ptr());
+        //println!("ret is: {}", ret);
         if ret == 0 {
             Some(c.slice_from(ZERO.len()))
         } else {
@@ -271,6 +272,43 @@ fn bench_open(b: &mut test::Bencher) {
     b.iter(|| {
         for c in cs.iter() {
             open(c.as_slice(), &n, &k);
+        }
+    });
+}
+
+#[bench]
+fn bench_seal_inplace(b: &mut test::Bencher) {
+    use randombytes::randombytes;
+    let k = gen_key();
+    let n = gen_nonce();
+    let ms: Vec<Vec<u8>> = BENCH_SIZES.iter().map(|s| {
+        let mut v = Vec::with_capacity(ZERO.len() + *s);
+        v.push_all(ZERO);
+        v.push_all(randombytes(*s).as_slice());
+        v
+    }).collect();
+    b.iter(|| {
+        for m in ms.iter() {
+            seal_inplace(m.clone().as_mut_slice(), &n, &k).unwrap();
+        }
+    });
+}
+
+#[bench]
+fn bench_open_inplace(b: &mut test::Bencher) {
+    use randombytes::randombytes;
+    let k = gen_key();
+    let n = gen_nonce();
+    let cs: Vec<Vec<u8>> = BENCH_SIZES.iter().map(|s| {
+        let mut v = Vec::with_capacity(ZERO.len() + *s);
+        v.push_all(ZERO);
+        v.push_all(randombytes(*s).as_slice());
+        seal_inplace(v.as_mut_slice(), &n, &k).unwrap();
+        v
+    }).collect();
+    b.iter(|| {
+        for c in cs.iter() {
+            open_inplace(c.clone().as_mut_slice(), &n, &k).unwrap();
         }
     });
 }
