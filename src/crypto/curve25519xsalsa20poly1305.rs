@@ -528,73 +528,19 @@ mod bench {
     }
 
     #[bench]
-    fn bench_seal_inplace(b: &mut test::Bencher) {
+    fn bench_seal_open_inplace(b: &mut test::Bencher) {
         let (pk, sk) = gen_keypair();
         let n = gen_nonce();
-        let ms: Vec<Vec<u8>> = BENCH_SIZES.iter().map(|s| {
+        let mut ms: Vec<Vec<u8>> = BENCH_SIZES.iter().map(|s| {
             let mut v = Vec::with_capacity(ZERO.len() + *s);
             v.push_all(ZERO);
             v.push_all(randombytes(*s).as_slice());
             v
         }).collect();
         b.iter(|| {
-            for m in ms.iter() {
-                seal_inplace(m.clone().as_mut_slice(), &n, &pk, &sk).unwrap();
-            }
-        });
-    }
-
-    #[bench]
-    fn bench_open_inplace(b: &mut test::Bencher) {
-        let (pk, sk) = gen_keypair();
-        let n = gen_nonce();
-        let cs: Vec<Vec<u8>> = BENCH_SIZES.iter().map(|s| {
-            let mut v = Vec::with_capacity(ZERO.len() + *s);
-            v.push_all(ZERO);
-            v.push_all(randombytes(*s).as_slice());
-            seal_inplace(v.as_mut_slice(), &n, &pk, &sk).unwrap();
-            v
-        }).collect();
-        b.iter(|| {
-            for c in cs.iter() {
-                open_inplace(c.clone().as_mut_slice(), &n, &pk, &sk).unwrap();
-            }
-        });
-    }
-
-    #[bench]
-    fn bench_seal_precomputed_inplace(b: &mut test::Bencher) {
-        let (pk, sk) = gen_keypair();
-        let k = precompute(&pk, &sk);
-        let n = gen_nonce();
-        let ms: Vec<Vec<u8>> = BENCH_SIZES.iter().map(|s| {
-            let mut v = Vec::with_capacity(ZERO.len() + *s);
-            v.push_all(ZERO);
-            v.push_all(randombytes(*s).as_slice());
-            v
-        }).collect();
-        b.iter(|| {
-            for m in ms.iter() {
-                seal_precomputed_inplace(m.clone().as_mut_slice(), &n, &k).unwrap();
-            }
-        });
-    }
-
-    #[bench]
-    fn bench_open_precomputed_inplace(b: &mut test::Bencher) {
-        let (pk, sk) = gen_keypair();
-        let k = precompute(&pk, &sk);
-        let n = gen_nonce();
-        let cs: Vec<Vec<u8>> = BENCH_SIZES.iter().map(|s| {
-            let mut v = Vec::with_capacity(ZERO.len() + *s);
-            v.push_all(ZERO);
-            v.push_all(randombytes(*s).as_slice());
-            seal_precomputed_inplace(v.as_mut_slice(), &n, &k).unwrap();
-            v
-        }).collect();
-        b.iter(|| {
-            for c in cs.iter() {
-                open_precomputed_inplace(c.clone().as_mut_slice(), &n, &k).unwrap();
+            for m in ms.iter_mut() {
+                seal_inplace(m.as_mut_slice(), &n, &pk, &sk).unwrap();
+                open_inplace(m.as_mut_slice(), &n, &pk, &sk).unwrap();
             }
         });
     }
