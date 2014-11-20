@@ -58,7 +58,7 @@ pub const BOXZERO: [u8, ..16] = [0, ..16];
  */
 pub fn gen_key() -> Key {
     let mut key = [0, ..KEYBYTES];
-    randombytes_into(key);
+    randombytes_into(&mut key);
     Key(key)
 }
 
@@ -71,7 +71,7 @@ pub fn gen_key() -> Key {
  */
 pub fn gen_nonce() -> Nonce {
     let mut nonce = [0, ..NONCEBYTES];
-    randombytes_into(nonce);
+    randombytes_into(&mut nonce);
     Nonce(nonce)
 }
 
@@ -82,7 +82,7 @@ pub fn gen_nonce() -> Nonce {
 pub fn seal(m: &[u8],
             n: &Nonce,
             k: &Key) -> Vec<u8> {
-    marshal(m, ZERO, |b| {
+    marshal(m, &ZERO, |b| {
         seal_inplace(b.as_mut_slice(), n, k)
     }).unwrap()
 }
@@ -100,7 +100,7 @@ pub fn seal(m: &[u8],
 pub fn seal_inplace<'a>(m: &'a mut [u8],
                         &Nonce(n): &Nonce,
                         &Key(k): &Key) -> Option<&'a [u8]> {
-    if m.slice_to(ZERO.len()) != ZERO {
+    if m.slice_to(ZERO.len()) != &ZERO {
         return None
     } 
 
@@ -123,7 +123,7 @@ pub fn seal_inplace<'a>(m: &'a mut [u8],
 pub fn open(c: &[u8],
             n: &Nonce,
             k: &Key) -> Option<Vec<u8>> {
-    marshal(c, BOXZERO, |b| {
+    marshal(c, &BOXZERO, |b| {
         open_inplace(b.as_mut_slice(), n, k)
     })
 }
@@ -141,7 +141,7 @@ pub fn open(c: &[u8],
 pub fn open_inplace<'a>(c: &'a mut [u8],
                         &Nonce(n): &Nonce,
                         &Key(k): &Key) -> Option<&'a [u8]> {
-    if c.slice_to(BOXZERO.len()) != BOXZERO {
+    if c.slice_to(BOXZERO.len()) != &BOXZERO {
         return None
     }
 
@@ -271,7 +271,7 @@ mod bench {
         let n = gen_nonce();
         let mut ms: Vec<Vec<u8>> = BENCH_SIZES.iter().map(|s| {
             let mut v = Vec::with_capacity(ZERO.len() + *s);
-            v.push_all(ZERO);
+            v.push_all(&ZERO);
             v.push_all(randombytes(*s).as_slice());
             v
         }).collect();
