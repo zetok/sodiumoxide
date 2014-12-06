@@ -132,7 +132,7 @@ pub fn seal_inplace<'a>(m: &'a mut [u8],
                         &Nonce(n): &Nonce,
                         &PublicKey(pk): &PublicKey,
                         &SecretKey(sk): &SecretKey) -> Option<&'a [u8]> {
-    if m.slice_to(ZERO.len()) != ZERO.as_slice() {
+    if m.len() < ZERO.len() || m.slice_to(ZERO.len()) != ZERO.as_slice() {
         return None
     }
     unsafe {
@@ -176,7 +176,7 @@ pub fn open_inplace<'a>(c: &'a mut [u8],
                         &Nonce(n): &Nonce,
                         &PublicKey(pk): &PublicKey,
                         &SecretKey(sk): &SecretKey) -> Option<&'a [u8]> {
-    if c.slice_to(BOXZERO.len()) != BOXZERO.as_slice() {
+    if c.len() < BOXZERO.len() || c.slice_to(BOXZERO.len()) != BOXZERO.as_slice() {
         return None
     }
     
@@ -248,7 +248,7 @@ pub fn seal_precomputed_inplace<'a>(m: &'a mut [u8],
                                     &Nonce(n): &Nonce,
                                     &PrecomputedKey(k): &PrecomputedKey
                                     ) -> Option<&'a [u8]> {
-    if m.slice_to(ZERO.len()) != ZERO.as_slice() {
+    if m.len() < ZERO.len() || m.slice_to(ZERO.len()) != ZERO.as_slice() {
         return None
     }
     unsafe {
@@ -288,7 +288,7 @@ pub fn open_precomputed_inplace<'a>(c: &'a mut [u8],
                                     &Nonce(n): &Nonce,
                                     &PrecomputedKey(k): &PrecomputedKey
                                     ) -> Option<&'a [u8]> {
-    if c.slice_to(BOXZERO.len()) != BOXZERO.as_slice() {
+    if c.len() < BOXZERO.len() || c.slice_to(BOXZERO.len()) != BOXZERO.as_slice() {
         return None
     }
     unsafe {

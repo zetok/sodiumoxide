@@ -100,7 +100,7 @@ pub fn seal(m: &[u8],
 pub fn seal_inplace<'a>(m: &'a mut [u8],
                         &Nonce(n): &Nonce,
                         &Key(k): &Key) -> Option<&'a [u8]> {
-    if m.slice_to(ZERO.len()) != ZERO.as_slice() {
+    if m.len() < ZERO.len() || m.slice_to(ZERO.len()) != ZERO.as_slice() {
         return None
     } 
 
@@ -141,7 +141,7 @@ pub fn open(c: &[u8],
 pub fn open_inplace<'a>(c: &'a mut [u8],
                         &Nonce(n): &Nonce,
                         &Key(k): &Key) -> Option<&'a [u8]> {
-    if c.slice_to(BOXZERO.len()) != BOXZERO.as_slice() {
+    if c.len() < BOXZERO.len() || c.slice_to(BOXZERO.len()) != BOXZERO.as_slice() {
         return None
     }
 
