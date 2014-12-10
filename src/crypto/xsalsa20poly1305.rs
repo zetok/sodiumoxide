@@ -6,27 +6,14 @@ combination of Salsa20 and Poly1305 specified in
 This function is conjectured to meet the standard notions of privacy and
 authenticity.
 */
-use libc::{c_ulonglong, c_int};
+use ffi;
+use libc::c_ulonglong;
 use std::intrinsics::volatile_set_memory;
 use utils::marshal;
 use randombytes::randombytes_into;
 
-#[link(name = "sodium")]
-extern {
-    fn crypto_secretbox_xsalsa20poly1305(c: *mut u8,
-                                         m: *const u8,
-                                         mlen: c_ulonglong,
-                                         n: *const u8,
-                                         k: *const u8) -> c_int;
-    fn crypto_secretbox_xsalsa20poly1305_open(m: *mut u8,
-                                              c: *const u8,
-                                              clen: c_ulonglong,
-                                              n: *const u8,
-                                              k: *const u8) -> c_int;
-}
-
-pub const KEYBYTES: uint = 32;
-pub const NONCEBYTES: uint = 24;
+pub const KEYBYTES: uint = ffi::crypto_secretbox_xsalsa20poly1305_KEYBYTES as uint;
+pub const NONCEBYTES: uint = ffi::crypto_secretbox_xsalsa20poly1305_NONCEBYTES as uint;
 
 /**
  * `Key` for symmetric authenticated encryption
@@ -105,11 +92,11 @@ pub fn seal_inplace<'a>(m: &'a mut [u8],
     } 
 
     unsafe {
-        crypto_secretbox_xsalsa20poly1305(m.as_mut_ptr(),
-                                          m.as_ptr(),
-                                          m.len() as c_ulonglong,
-                                          n.as_ptr(),
-                                          k.as_ptr());
+        ffi::crypto_secretbox_xsalsa20poly1305(m.as_mut_ptr(),
+                                               m.as_ptr(),
+                                               m.len() as c_ulonglong,
+                                               n.as_ptr(),
+                                               k.as_ptr());
     }
     Some(m.slice_from(BOXZERO.len()))
 }
@@ -146,17 +133,17 @@ pub fn open_inplace<'a>(c: &'a mut [u8],
     }
 
     unsafe {
-        let ret = crypto_secretbox_xsalsa20poly1305_open(c.as_mut_ptr(),
-                                                         c.as_ptr(),
-                                                         c.len() as c_ulonglong,
-                                                         n.as_ptr(),
-                                                         k.as_ptr());
-        //println!("ret is: {}", ret);
+        let ret = ffi::crypto_secretbox_xsalsa20poly1305_open(
+            c.as_mut_ptr(),
+            c.as_ptr(),
+            c.len() as c_ulonglong,
+            n.as_ptr(),
+            k.as_ptr());
         if ret == 0 {
             Some(c.slice_from(ZERO.len()))
         } else {
             None
-        }
+    }
     }
 }
                         
