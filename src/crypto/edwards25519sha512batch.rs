@@ -20,13 +20,16 @@ pub struct SecretKey(pub [u8, ..SECRETKEYBYTES]);
 
 newtype_drop!(SecretKey)
 newtype_clone!(SecretKey)
+newtype_impl!(SecretKey, SECRETKEYBYTES)
 
 /**
  * `PublicKey` for signatures
  */
+#[deriving(Copy)]
 pub struct PublicKey(pub [u8, ..PUBLICKEYBYTES]);
 
 newtype_clone!(PublicKey)
+newtype_impl!(PublicKey, PUBLICKEYBYTES)
 
 /**
  * `gen_keypair()` randomly generates a secret key and a corresponding public

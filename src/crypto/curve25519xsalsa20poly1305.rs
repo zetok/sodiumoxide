@@ -25,9 +25,11 @@ pub const BOXZERO: [u8, ..BOXZEROBYTES] = [0, ..BOXZEROBYTES];
 /**
  * `PublicKey` for asymmetric authenticated encryption
  */
+#[deriving(Copy)]
 pub struct PublicKey(pub [u8, ..PUBLICKEYBYTES]);
 
 newtype_clone!(PublicKey)
+newtype_impl!(PublicKey, PUBLICKEYBYTES)
 
 /**
  * `SecretKey` for asymmetric authenticated encryption
@@ -39,13 +41,16 @@ pub struct SecretKey(pub [u8, ..SECRETKEYBYTES]);
 
 newtype_drop!(SecretKey)
 newtype_clone!(SecretKey)
+newtype_impl!(SecretKey, SECRETKEYBYTES)
 
 /**
  * `Nonce` for asymmetric authenticated encryption
  */
+#[deriving(Copy)]
 pub struct Nonce(pub [u8, ..NONCEBYTES]);
 
 newtype_clone!(Nonce)
+newtype_impl!(Nonce, NONCEBYTES)
 
 /**
  * `gen_keypair()` randomly generates a secret key and a corresponding public key.
@@ -179,6 +184,7 @@ pub struct PrecomputedKey([u8, ..PRECOMPUTEDKEYBYTES]);
 
 newtype_drop!(PrecomputedKey)
 newtype_clone!(PrecomputedKey)
+newtype_impl!(PrecomputedKey, PRECOMPUTEDKEYBYTES)
 
 /**
  * `precompute()` computes an intermediate key that can be used by `seal_precomputed()`
