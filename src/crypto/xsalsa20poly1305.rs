@@ -23,9 +23,9 @@ pub const NONCEBYTES: uint = ffi::crypto_secretbox_xsalsa20poly1305_NONCEBYTES a
  */
 pub struct Key(pub [u8, ..KEYBYTES]);
 
-newtype_drop!(Key)
-newtype_clone!(Key)
-newtype_impl!(Key, KEYBYTES)
+newtype_drop!(Key);
+newtype_clone!(Key);
+newtype_impl!(Key, KEYBYTES);
 
 /**
  * `Nonce` for symmetric authenticated encryption
@@ -33,8 +33,8 @@ newtype_impl!(Key, KEYBYTES)
 #[deriving(Copy)]
 pub struct Nonce(pub [u8, ..NONCEBYTES]);
 
-newtype_clone!(Nonce)
-newtype_impl!(Nonce, NONCEBYTES)
+newtype_clone!(Nonce);
+newtype_impl!(Nonce, NONCEBYTES);
 
 pub const ZERO: [u8, ..32] = [0, ..32];
 pub const BOXZERO: [u8, ..16] = [0, ..16];

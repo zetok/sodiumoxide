@@ -25,7 +25,7 @@ macro_rules! newtype_clone (($newtype:ident) => (
             }
         }
 
-        ))
+        ));
 
 macro_rules! newtype_drop (($newtype:ident) => (
         impl Drop for $newtype {
@@ -36,7 +36,7 @@ macro_rules! newtype_drop (($newtype:ident) => (
                 }
             }
         }
-        ))
+        ));
 
 macro_rules! newtype_impl (($newtype:ident, $len:expr) => (
     impl $newtype {
@@ -87,4 +87,4 @@ macro_rules! newtype_impl (($newtype:ident, $len:expr) => (
             bs.as_mut_slice()
         }
     }
-    ))
+    ));
