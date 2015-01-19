@@ -1,14 +1,13 @@
-#![macro_escape]
 macro_rules! hash_module (($hash_name:ident, $hashbytes:expr, $blockbytes:expr) => (
 
-pub const HASHBYTES: uint = $hashbytes;
-pub const BLOCKBYTES: uint = $blockbytes;
+pub const HASHBYTES: usize = $hashbytes;
+pub const BLOCKBYTES: usize = $blockbytes;
 
 /**
  * Digest-structure
  */
-#[deriving(Copy)]
-pub struct Digest(pub [u8, ..HASHBYTES]);
+#[derive(Copy)]
+pub struct Digest(pub [u8; HASHBYTES]);
 
 newtype_clone!(Digest);
 newtype_impl!(Digest, HASHBYTES);
@@ -18,7 +17,7 @@ newtype_impl!(Digest, HASHBYTES);
  */
 pub fn hash(m: &[u8]) -> Digest {
     unsafe {
-        let mut h = [0, ..HASHBYTES];
+        let mut h = [0; HASHBYTES];
         $hash_name(h.as_mut_ptr(), m.as_ptr(), m.len() as c_ulonglong);
         Digest(h)
     }
@@ -30,8 +29,8 @@ mod bench {
     use randombytes::randombytes;
     use super::*;
 
-    const BENCH_SIZES: [uint, ..14] = [0, 1, 2, 4, 8, 16, 32, 64,
-                                       128, 256, 512, 1024, 2048, 4096];
+    const BENCH_SIZES: [usize; 14] = [0, 1, 2, 4, 8, 16, 32, 64,
+                                      128, 256, 512, 1024, 2048, 4096];
 
     #[bench]
     fn bench_hash(b: &mut test::Bencher) {

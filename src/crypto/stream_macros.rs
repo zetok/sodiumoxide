@@ -1,11 +1,10 @@
-#![macro_escape]
-macro_rules! stream_module (($stream_name:ident, 
-                             $xor_name:ident, 
-                             $keybytes:expr, 
+macro_rules! stream_module (($stream_name:ident,
+                             $xor_name:ident,
+                             $keybytes:expr,
                              $noncebytes:expr) => (
 
-pub const KEYBYTES: uint = $keybytes;
-pub const NONCEBYTES: uint = $noncebytes;
+pub const KEYBYTES: usize = $keybytes;
+pub const NONCEBYTES: usize = $noncebytes;
 
 /**
  * `Key` for symmetric encryption
@@ -13,7 +12,7 @@ pub const NONCEBYTES: uint = $noncebytes;
  * When a `Key` goes out of scope its contents
  * will be zeroed out
  */
-pub struct Key(pub [u8, ..KEYBYTES]);
+pub struct Key(pub [u8; KEYBYTES]);
 
 newtype_drop!(Key);
 newtype_clone!(Key);
@@ -22,8 +21,8 @@ newtype_impl!(Key, KEYBYTES);
 /**
  * `Nonce` for symmetric encryption
  */
-#[deriving(Copy)]
-pub struct Nonce(pub [u8, ..NONCEBYTES]);
+#[derive(Copy)]
+pub struct Nonce(pub [u8; NONCEBYTES]);
 
 newtype_clone!(Nonce);
 newtype_impl!(Nonce, NONCEBYTES);
@@ -36,7 +35,7 @@ newtype_impl!(Nonce, NONCEBYTES);
  * from sodiumoxide.
  */
 pub fn gen_key() -> Key {
-    let mut key = [0, ..KEYBYTES];
+    let mut key = [0; KEYBYTES];
     randombytes_into(&mut key);
     Key(key)
 }
@@ -52,7 +51,7 @@ pub fn gen_key() -> Key {
  * do not use random nonces since the probability of nonce-collision is not negligible
  */
 pub fn gen_nonce() -> Nonce {
-    let mut nonce = [0, ..NONCEBYTES];
+    let mut nonce = [0; NONCEBYTES];
     randombytes_into(&mut nonce);
     Nonce(nonce)
 }
@@ -61,11 +60,11 @@ pub fn gen_nonce() -> Nonce {
  * `stream()` produces a `len`-byte stream `c` as a function of a
  * secret key `k` and a nonce `n`.
  */
-pub fn stream(len: uint,
+pub fn stream(len: usize,
               &Nonce(n): &Nonce,
               &Key(k): &Key) -> Vec<u8> {
     unsafe {
-        let mut c = Vec::from_elem(len, 0u8);
+        let mut c: Vec<u8> = repeat(0u8).take(len).collect();
         $stream_name(c.as_mut_ptr(),
                      c.len() as c_ulonglong,
                      n.as_ptr(),
@@ -86,7 +85,7 @@ pub fn stream_xor(m: &[u8],
                   &Nonce(n): &Nonce,
                   &Key(k): &Key) -> Vec<u8> {
     unsafe {
-        let mut c = Vec::from_elem(m.len(), 0u8);
+        let mut c: Vec<u8> = repeat(0u8).take(m.len()).collect();
         $xor_name(c.as_mut_ptr(),
                   m.as_ptr(),
                   m.len() as c_ulonglong,
@@ -119,7 +118,7 @@ pub fn stream_xor_inplace(m: &mut [u8],
 #[test]
 fn test_encrypt_decrypt() {
     use randombytes::randombytes;
-    for i in range(0, 1024u) {
+    for i in (0..1024us) {
         let k = gen_key();
         let n = gen_nonce();
         let m = randombytes(i);
@@ -132,7 +131,7 @@ fn test_encrypt_decrypt() {
 #[test]
 fn test_stream_xor() {
     use randombytes::randombytes;
-    for i in range(0, 1024u) {
+    for i in (0..1024us) {
         let k = gen_key();
         let n = gen_nonce();
         let m = randombytes(i);
@@ -149,7 +148,7 @@ fn test_stream_xor() {
 #[test]
 fn test_stream_xor_inplace() {
     use randombytes::randombytes;
-    for i in range(0, 1024u) {
+    for i in (0..1024us) {
         let k = gen_key();
         let n = gen_nonce();
         let mut m = randombytes(i);
@@ -168,8 +167,8 @@ mod bench {
     extern crate test;
     use super::*;
 
-    const BENCH_SIZES: [uint, ..14] = [0, 1, 2, 4, 8, 16, 32, 64, 
-                                       128, 256, 512, 1024, 2048, 4096];
+    const BENCH_SIZES: [usize; 14] = [0, 1, 2, 4, 8, 16, 32, 64,
+                                      128, 256, 512, 1024, 2048, 4096];
 
     #[bench]
     fn bench_stream(b: &mut test::Bencher) {

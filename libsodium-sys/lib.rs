@@ -1,7 +1,15 @@
 #![allow(non_upper_case_globals)]
 
+#[allow(unstable)]
 extern crate libc;
 use libc::{c_int, c_ulonglong, c_char, size_t};
+
+
+// aead
+pub const crypto_aead_chacha20poly1305_KEYBYTES: size_t = 32;
+pub const crypto_aead_chacha20poly1305_NSECBYTES: size_t = 0;
+pub const crypto_aead_chacha20poly1305_NPUBBYTES: size_t = 8;
+pub const crypto_aead_chacha20poly1305_ABYTES: size_t = 16;
 
 
 // stream
@@ -107,10 +115,34 @@ pub const crypto_secretbox_xsalsa20poly1305_MACBYTES: size_t =
 
 
 extern {
+  // core.h
   pub fn sodium_init() -> c_int;
   
-  pub fn randombytes_buf(buf: *mut u8,
-                         size: size_t);
+  
+  // aead
+  // crypto_aead_chacha20poly1305.h
+  pub fn crypto_aead_chacha20poly1305_keybytes() -> size_t;
+  pub fn crypto_aead_chacha20poly1305_nsecbytes() -> size_t;
+  pub fn crypto_aead_chacha20poly1305_npubbytes() -> size_t;
+  pub fn crypto_aead_chacha20poly1305_abytes() -> size_t;
+  pub fn crypto_aead_chacha20poly1305_encrypt(c: *mut u8,
+                                              clen: *mut c_ulonglong,
+                                              m: *const u8,
+                                              mlen: c_ulonglong,
+                                              ad: *const u8,
+                                              adlen: c_ulonglong,
+                                              nsec: *const u8,
+                                              npub: *const u8,
+                                              k: *const u8) -> c_int;
+  pub fn crypto_aead_chacha20poly1305_decrypt(m: *mut u8,
+                                              mlen: *mut c_ulonglong,
+                                              nsec: *mut u8,
+                                              c: *const u8,
+                                              clen: c_ulonglong,
+                                              ad: *const u8,
+                                              adlen: c_ulonglong,
+                                              npub: *const u8,
+                                              k: *const u8) -> c_int;
 
 
   // auth
@@ -321,6 +353,15 @@ extern {
                                   sm: *const u8,
                                   smlen: c_ulonglong,
                                   pk: *const u8) -> c_int;
+  pub fn crypto_sign_ed25519_detached(sig: *mut u8,
+                                      siglen: *mut c_ulonglong,
+                                      m: *const u8,
+                                      mlen: c_ulonglong,
+                                      sk: *const u8) -> c_int;
+  pub fn crypto_sign_ed25519_verify_detached(sig: *const u8,
+                                             m: *const u8,
+                                             mlen: c_ulonglong,
+                                             pk: *const u8) -> c_int;
   pub fn crypto_sign_ed25519_bytes() -> size_t;
   pub fn crypto_sign_ed25519_seedbytes() -> size_t;
   pub fn crypto_sign_ed25519_publickeybytes() -> size_t;
@@ -373,6 +414,30 @@ extern {
   pub fn crypto_secretbox_xsalsa20poly1305_zerobytes() -> size_t;
   pub fn crypto_secretbox_xsalsa20poly1305_boxzerobytes() -> size_t;
   pub fn crypto_secretbox_xsalsa20poly1305_macbytes() -> size_t;
+
+
+  // randombytes.h
+  pub fn randombytes_buf(buf: *mut u8,
+                         size: size_t);
+}
+
+
+// aead
+#[test]
+fn test_crypto_aead_chacha20poly1305_keybytes() {
+    assert!(unsafe { crypto_aead_chacha20poly1305_keybytes() } == crypto_aead_chacha20poly1305_KEYBYTES)
+}
+#[test]
+fn test_crypto_aead_chacha20poly1305_nsecbytes() {
+    assert!(unsafe { crypto_aead_chacha20poly1305_nsecbytes() } == crypto_aead_chacha20poly1305_NSECBYTES)
+}
+#[test]
+fn test_crypto_aead_chacha20poly1305_npubbytes() {
+    assert!(unsafe { crypto_aead_chacha20poly1305_npubbytes() } == crypto_aead_chacha20poly1305_NPUBBYTES)
+}
+#[test]
+fn test_crypto_aead_chacha20poly1305_abytes() {
+    assert!(unsafe { crypto_aead_chacha20poly1305_abytes() } == crypto_aead_chacha20poly1305_ABYTES)
 }
 
 
@@ -387,10 +452,11 @@ fn test_crypto_auth_keybytes() {
 }
 #[test]
 fn test_crypto_auth_primitive() {
-    let s = unsafe {
-        std::c_str::CString::new(crypto_auth_primitive(), false)
-    };
-    assert!(s.as_bytes_no_nul() == crypto_auth_PRIMITIVE.as_bytes());
+    unsafe {
+         let s = crypto_auth_primitive();
+         let s = std::ffi::c_str_to_bytes(&s);
+         assert!(s == crypto_auth_PRIMITIVE.as_bytes());
+    }
 }
 
 #[test]
@@ -432,10 +498,11 @@ fn test_crypto_onetimeauth_keybytes() {
 }
 #[test]
 fn test_crypto_onetimeauth_primitive() {
-    let s = unsafe {
-        std::c_str::CString::new(crypto_onetimeauth_primitive(), false)
-    };
-    assert!(s.as_bytes_no_nul() == crypto_onetimeauth_PRIMITIVE.as_bytes());
+    unsafe {
+         let s = crypto_onetimeauth_primitive();
+         let s = std::ffi::c_str_to_bytes(&s);
+         assert!(s == crypto_onetimeauth_PRIMITIVE.as_bytes());
+    }
 }
 #[test]
 fn test_crypto_onetimeauth_poly1305_bytes() {
@@ -454,10 +521,11 @@ fn test_crypto_hash_bytes() {
 }
 #[test]
 fn test_crypto_hash_primitive() {
-    let s = unsafe {
-        std::c_str::CString::new(crypto_hash_primitive(), false)
-    };
-    assert!(s.as_bytes_no_nul() == crypto_hash_PRIMITIVE.as_bytes());
+    unsafe {
+         let s = crypto_hash_primitive();
+         let s = std::ffi::c_str_to_bytes(&s);
+         assert!(s == crypto_hash_PRIMITIVE.as_bytes());
+    }
 }
 
 #[test]
@@ -482,10 +550,11 @@ fn test_crypto_stream_noncebytes() {
 }
 #[test]
 fn test_crypto_stream_primitive() {
-    let s = unsafe {
-        std::c_str::CString::new(crypto_stream_primitive(), false)
-    };
-    assert!(s.as_bytes_no_nul() == crypto_stream_PRIMITIVE.as_bytes());
+    unsafe {
+         let s = crypto_stream_primitive();
+         let s = std::ffi::c_str_to_bytes(&s);
+         assert!(s == crypto_stream_PRIMITIVE.as_bytes());
+    }
 }
 
 #[test]

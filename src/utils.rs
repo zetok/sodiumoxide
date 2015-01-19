@@ -1,10 +1,9 @@
-#![macro_escape]
-
 #[doc(hidden)]
-pub fn marshal<'a>(m: &'a [u8],
-                   padding: &[u8],
-                   f: |&mut [u8]| -> Option<&'a [u8]>
-                   ) -> Option<Vec<u8>> {
+pub fn marshal<F>(m: &[u8],
+                  padding: &[u8],
+                  f: F
+                  ) -> Option<Vec<u8>>
+where F: Fn(&mut [u8]) -> Option<&[u8]> {
     let mut buf = Vec::with_capacity(padding.len() + m.len());
     buf.push_all(padding);
     buf.push_all(m);
@@ -30,7 +29,7 @@ macro_rules! newtype_clone (($newtype:ident) => (
 macro_rules! newtype_drop (($newtype:ident) => (
         impl Drop for $newtype {
             fn drop(&mut self) {
-                let &$newtype(ref mut v) = self;
+                let &mut $newtype(ref mut v) = self;
                 unsafe {
                     volatile_set_memory(v.as_mut_ptr(), 0, v.len());
                 }
@@ -50,7 +49,7 @@ macro_rules! newtype_impl (($newtype:ident, $len:expr) => (
             if bs.len() != $len {
                 return None
             }
-            let mut n = $newtype([0, ..$len]);
+            let mut n = $newtype([0; $len]);
             {
                 let $newtype(ref mut b) = n;
                 for (bi, &bsi) in b.iter_mut().zip(bs.iter()) {
@@ -83,7 +82,7 @@ macro_rules! newtype_impl (($newtype:ident, $len:expr) => (
          * functions exposed by the sodiumoxide API.
          */
         pub fn as_mut_slice(&mut self) -> &mut [u8] {
-            let &$newtype(ref mut bs) = self;
+            let &mut $newtype(ref mut bs) = self;
             bs.as_mut_slice()
         }
     }

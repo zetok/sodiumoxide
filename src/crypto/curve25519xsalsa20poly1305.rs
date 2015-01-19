@@ -13,20 +13,20 @@ use std::intrinsics::volatile_set_memory;
 use utils::marshal;
 use randombytes::randombytes_into;
 
-pub const PUBLICKEYBYTES: uint = ffi::crypto_box_curve25519xsalsa20poly1305_PUBLICKEYBYTES as uint;
-pub const SECRETKEYBYTES: uint = ffi::crypto_box_curve25519xsalsa20poly1305_SECRETKEYBYTES as uint;
-pub const NONCEBYTES: uint = ffi::crypto_box_curve25519xsalsa20poly1305_NONCEBYTES as uint;
-pub const PRECOMPUTEDKEYBYTES: uint = ffi::crypto_box_curve25519xsalsa20poly1305_BEFORENMBYTES as uint;
-const ZEROBYTES: uint = ffi::crypto_box_curve25519xsalsa20poly1305_ZEROBYTES as uint;
-const BOXZEROBYTES: uint = ffi::crypto_box_curve25519xsalsa20poly1305_BOXZEROBYTES as uint;
-pub const ZERO: [u8, ..ZEROBYTES] = [0, ..ZEROBYTES];
-pub const BOXZERO: [u8, ..BOXZEROBYTES] = [0, ..BOXZEROBYTES];
+pub const PUBLICKEYBYTES: usize = ffi::crypto_box_curve25519xsalsa20poly1305_PUBLICKEYBYTES as usize;
+pub const SECRETKEYBYTES: usize = ffi::crypto_box_curve25519xsalsa20poly1305_SECRETKEYBYTES as usize;
+pub const NONCEBYTES: usize = ffi::crypto_box_curve25519xsalsa20poly1305_NONCEBYTES as usize;
+pub const PRECOMPUTEDKEYBYTES: usize = ffi::crypto_box_curve25519xsalsa20poly1305_BEFORENMBYTES as usize;
+const ZEROBYTES: usize = ffi::crypto_box_curve25519xsalsa20poly1305_ZEROBYTES as usize;
+const BOXZEROBYTES: usize = ffi::crypto_box_curve25519xsalsa20poly1305_BOXZEROBYTES as usize;
+pub const ZERO: [u8; ZEROBYTES] = [0; ZEROBYTES];
+pub const BOXZERO: [u8; BOXZEROBYTES] = [0; BOXZEROBYTES];
 
 /**
  * `PublicKey` for asymmetric authenticated encryption
  */
-#[deriving(Copy)]
-pub struct PublicKey(pub [u8, ..PUBLICKEYBYTES]);
+#[derive(Copy)]
+pub struct PublicKey(pub [u8; PUBLICKEYBYTES]);
 
 newtype_clone!(PublicKey);
 newtype_impl!(PublicKey, PUBLICKEYBYTES);
@@ -37,7 +37,7 @@ newtype_impl!(PublicKey, PUBLICKEYBYTES);
  * When a `SecretKey` goes out of scope its contents
  * will be zeroed out
  */
-pub struct SecretKey(pub [u8, ..SECRETKEYBYTES]);
+pub struct SecretKey(pub [u8; SECRETKEYBYTES]);
 
 newtype_drop!(SecretKey);
 newtype_clone!(SecretKey);
@@ -46,8 +46,8 @@ newtype_impl!(SecretKey, SECRETKEYBYTES);
 /**
  * `Nonce` for asymmetric authenticated encryption
  */
-#[deriving(Copy)]
-pub struct Nonce(pub [u8, ..NONCEBYTES]);
+#[derive(Copy)]
+pub struct Nonce(pub [u8; NONCEBYTES]);
 
 newtype_clone!(Nonce);
 newtype_impl!(Nonce, NONCEBYTES);
@@ -61,8 +61,8 @@ newtype_impl!(Nonce, NONCEBYTES);
  */
 pub fn gen_keypair() -> (PublicKey, SecretKey) {
     unsafe {
-        let mut pk = [0u8, ..PUBLICKEYBYTES];
-        let mut sk = [0u8, ..SECRETKEYBYTES];
+        let mut pk = [0u8; PUBLICKEYBYTES];
+        let mut sk = [0u8; SECRETKEYBYTES];
         ffi::crypto_box_curve25519xsalsa20poly1305_keypair(
             pk.as_mut_ptr(),
             sk.as_mut_ptr());
@@ -78,7 +78,7 @@ pub fn gen_keypair() -> (PublicKey, SecretKey) {
  * from sodiumoxide.
  */
 pub fn gen_nonce() -> Nonce {
-    let mut n = [0, ..NONCEBYTES];
+    let mut n = [0; NONCEBYTES];
     randombytes_into(&mut n);
     Nonce(n)
 }
@@ -180,7 +180,7 @@ pub fn open_inplace<'a>(c: &'a mut [u8],
  *
  * When a `PrecomputedKey` goes out of scope its contents will be zeroed out
  */
-pub struct PrecomputedKey([u8, ..PRECOMPUTEDKEYBYTES]);
+pub struct PrecomputedKey([u8; PRECOMPUTEDKEYBYTES]);
 
 newtype_drop!(PrecomputedKey);
 newtype_clone!(PrecomputedKey);
@@ -192,7 +192,7 @@ newtype_impl!(PrecomputedKey, PRECOMPUTEDKEYBYTES);
  */
 pub fn precompute(&PublicKey(pk): &PublicKey,
                   &SecretKey(sk): &SecretKey) -> PrecomputedKey {
-    let mut k = [0u8, ..PRECOMPUTEDKEYBYTES];
+    let mut k = [0u8; PRECOMPUTEDKEYBYTES];
     unsafe {
         ffi::crypto_box_curve25519xsalsa20poly1305_beforenm(k.as_mut_ptr(),
                                                        pk.as_ptr(),
@@ -287,7 +287,7 @@ pub fn open_precomputed_inplace<'a>(c: &'a mut [u8],
 #[test]
 fn test_seal_open() {
     use randombytes::randombytes;
-    for i in range(0, 256u) {
+    for i in (0..256us) {
         let (pk1, sk1) = gen_keypair();
         let (pk2, sk2) = gen_keypair();
         let m = randombytes(i);
@@ -301,7 +301,7 @@ fn test_seal_open() {
 #[test]
 fn test_seal_open_precomputed() {
     use randombytes::randombytes;
-    for i in range(0, 256u) {
+    for i in (0..256us) {
         let (pk1, sk1) = gen_keypair();
         let (pk2, sk2) = gen_keypair();
         let k1 = precompute(&pk1, &sk2);
@@ -320,14 +320,14 @@ fn test_seal_open_precomputed() {
 #[test]
 fn test_seal_open_tamper() {
     use randombytes::randombytes;
-    for i in range(0, 32u) {
+    for i in (0..32us) {
         let (pk1, sk1) = gen_keypair();
         let (pk2, sk2) = gen_keypair();
         let m = randombytes(i);
         let n = gen_nonce();
         let mut cv = seal(m.as_slice(), &n, &pk1, &sk2);
         let c = cv.as_mut_slice();
-        for j in range(0, c.len()) {
+        for j in (0..c.len()) {
             c[j] ^= 0x20;
             assert!(None == open(c, &n, &pk2, &sk1));
             c[j] ^= 0x20;
@@ -338,7 +338,7 @@ fn test_seal_open_tamper() {
 #[test]
 fn test_seal_open_precomputed_tamper() {
     use randombytes::randombytes;
-    for i in range(0, 32u) {
+    for i in (0..32us) {
         let (pk1, sk1) = gen_keypair();
         let (pk2, sk2) = gen_keypair();
         let k1 = precompute(&pk1, &sk2);
@@ -347,7 +347,7 @@ fn test_seal_open_precomputed_tamper() {
         let n = gen_nonce();
         let mut cv = seal_precomputed(m.as_slice(), &n, &k1);
         let c = cv.as_mut_slice();
-        for j in range(0, c.len()) {
+        for j in (0..c.len()) {
             c[j] ^= 0x20;
             assert!(None == open_precomputed(c, &n, &k2));
             c[j] ^= 0x20;
@@ -475,8 +475,8 @@ mod bench {
     use randombytes::randombytes;
     use super::*;
 
-    const BENCH_SIZES: [uint, ..14] = [0, 1, 2, 4, 8, 16, 32, 64, 
-                                       128, 256, 512, 1024, 2048, 4096];
+    const BENCH_SIZES: [usize; 14] = [0, 1, 2, 4, 8, 16, 32, 64,
+                                      128, 256, 512, 1024, 2048, 4096];
 
     #[bench]
     fn bench_seal_open(b: &mut test::Bencher) {

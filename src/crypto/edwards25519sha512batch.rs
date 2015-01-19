@@ -5,10 +5,11 @@ WARNING: This signature software is a prototype. It has been replaced by the fin
 use ffi;
 use libc::c_ulonglong;
 use std::intrinsics::volatile_set_memory;
+use std::iter::repeat;
 
-pub const SECRETKEYBYTES: uint = ffi::crypto_sign_edwards25519sha512batch_SECRETKEYBYTES as uint;
-pub const PUBLICKEYBYTES: uint = ffi::crypto_sign_edwards25519sha512batch_PUBLICKEYBYTES as uint;
-pub const SIGNATUREBYTES: uint = ffi::crypto_sign_edwards25519sha512batch_BYTES as uint;
+pub const SECRETKEYBYTES: usize = ffi::crypto_sign_edwards25519sha512batch_SECRETKEYBYTES as usize;
+pub const PUBLICKEYBYTES: usize = ffi::crypto_sign_edwards25519sha512batch_PUBLICKEYBYTES as usize;
+pub const SIGNATUREBYTES: usize = ffi::crypto_sign_edwards25519sha512batch_BYTES as usize;
 
 /**
  * `SecretKey` for signatures
@@ -16,7 +17,7 @@ pub const SIGNATUREBYTES: uint = ffi::crypto_sign_edwards25519sha512batch_BYTES 
  * When a `SecretKey` goes out of scope its contents
  * will be zeroed out
  */
-pub struct SecretKey(pub [u8, ..SECRETKEYBYTES]);
+pub struct SecretKey(pub [u8; SECRETKEYBYTES]);
 
 newtype_drop!(SecretKey);
 newtype_clone!(SecretKey);
@@ -25,8 +26,8 @@ newtype_impl!(SecretKey, SECRETKEYBYTES);
 /**
  * `PublicKey` for signatures
  */
-#[deriving(Copy)]
-pub struct PublicKey(pub [u8, ..PUBLICKEYBYTES]);
+#[derive(Copy)]
+pub struct PublicKey(pub [u8; PUBLICKEYBYTES]);
 
 newtype_clone!(PublicKey);
 newtype_impl!(PublicKey, PUBLICKEYBYTES);
@@ -41,8 +42,8 @@ newtype_impl!(PublicKey, PUBLICKEYBYTES);
  */
 pub fn gen_keypair() -> (PublicKey, SecretKey) {
     unsafe {
-        let mut pk = [0u8, ..PUBLICKEYBYTES];
-        let mut sk = [0u8, ..SECRETKEYBYTES];
+        let mut pk = [0u8; PUBLICKEYBYTES];
+        let mut sk = [0u8; SECRETKEYBYTES];
         ffi::crypto_sign_edwards25519sha512batch_keypair(pk.as_mut_ptr(),
                                                     sk.as_mut_ptr());
         (PublicKey(pk), SecretKey(sk))
@@ -56,14 +57,14 @@ pub fn gen_keypair() -> (PublicKey, SecretKey) {
 pub fn sign(m: &[u8],
             &SecretKey(sk): &SecretKey) -> Vec<u8> {
     unsafe {
-        let mut sm = Vec::from_elem(m.len() + SIGNATUREBYTES, 0u8);
+        let mut sm: Vec<u8> = repeat(0u8).take(m.len() + SIGNATUREBYTES).collect();
         let mut smlen = 0;
         ffi::crypto_sign_edwards25519sha512batch(sm.as_mut_ptr(),
-                                            &mut smlen,
-                                            m.as_ptr(),
-                                            m.len() as c_ulonglong,
-                                            sk.as_ptr());
-        sm.truncate(smlen as uint);
+                                                 &mut smlen,
+                                                 m.as_ptr(),
+                                                 m.len() as c_ulonglong,
+                                                 sk.as_ptr());
+        sm.truncate(smlen as usize);
         sm
     }
 }
@@ -76,14 +77,14 @@ pub fn sign(m: &[u8],
 pub fn verify(sm: &[u8],
               &PublicKey(pk): &PublicKey) -> Option<Vec<u8>> {
     unsafe {
-        let mut m = Vec::from_elem(sm.len(), 0u8);
+        let mut m: Vec<u8> = repeat(0u8).take(sm.len()).collect();
         let mut mlen = 0;
         if ffi::crypto_sign_edwards25519sha512batch_open(m.as_mut_ptr(),
-                                                    &mut mlen,
-                                                    sm.as_ptr(),
-                                                    sm.len() as c_ulonglong,
-                                                    pk.as_ptr()) == 0 {
-            m.truncate(mlen as uint);
+                                                         &mut mlen,
+                                                         sm.as_ptr(),
+                                                         sm.len() as c_ulonglong,
+                                                         pk.as_ptr()) == 0 {
+            m.truncate(mlen as usize);
             Some(m)
         } else {
             None
@@ -94,7 +95,7 @@ pub fn verify(sm: &[u8],
 #[test]
 fn test_sign_verify() {
     use randombytes::randombytes;
-    for i in range(0, 256u) {
+    for i in (0..256us) {
         let (pk, sk) = gen_keypair();
         let m = randombytes(i);
         let sm = sign(m.as_slice(), &sk);
@@ -106,12 +107,12 @@ fn test_sign_verify() {
 #[test]
 fn test_sign_verify_tamper() {
     use randombytes::randombytes;
-    for i in range(0, 32u) {
+    for i in (0..32us) {
         let (pk, sk) = gen_keypair();
         let m = randombytes(i);
         let mut smv = sign(m.as_slice(), &sk);
         let sm = smv.as_mut_slice();
-        for j in range(0, sm.len()) {
+        for j in (0..sm.len()) {
             sm[j] ^= 0x20;
             assert!(None == verify(sm, &pk));
             sm[j] ^= 0x20;
@@ -125,8 +126,8 @@ mod bench {
     use randombytes::randombytes;
     use super::*;
 
-    const BENCH_SIZES: [uint, ..14] = [0, 1, 2, 4, 8, 16, 32, 64,
-                                       128, 256, 512, 1024, 2048, 4096];
+    const BENCH_SIZES: [usize; 14] = [0, 1, 2, 4, 8, 16, 32, 64,
+                                      128, 256, 512, 1024, 2048, 4096];
 
     #[bench]
     fn bench_sign(b: &mut test::Bencher) {

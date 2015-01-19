@@ -12,8 +12,12 @@ use std::intrinsics::volatile_set_memory;
 use utils::marshal;
 use randombytes::randombytes_into;
 
-pub const KEYBYTES: uint = ffi::crypto_secretbox_xsalsa20poly1305_KEYBYTES as uint;
-pub const NONCEBYTES: uint = ffi::crypto_secretbox_xsalsa20poly1305_NONCEBYTES as uint;
+pub const KEYBYTES: usize = ffi::crypto_secretbox_xsalsa20poly1305_KEYBYTES as usize;
+pub const NONCEBYTES: usize = ffi::crypto_secretbox_xsalsa20poly1305_NONCEBYTES as usize;
+const ZEROBYTES: usize = ffi::crypto_secretbox_xsalsa20poly1305_ZEROBYTES as usize;
+const BOXZEROBYTES: usize = ffi::crypto_secretbox_xsalsa20poly1305_BOXZEROBYTES as usize;
+pub const ZERO: [u8; ZEROBYTES] = [0; ZEROBYTES];
+pub const BOXZERO: [u8; BOXZEROBYTES] = [0; BOXZEROBYTES];
 
 /**
  * `Key` for symmetric authenticated encryption
@@ -21,7 +25,7 @@ pub const NONCEBYTES: uint = ffi::crypto_secretbox_xsalsa20poly1305_NONCEBYTES a
  * When a `Key` goes out of scope its contents
  * will be zeroed out
  */
-pub struct Key(pub [u8, ..KEYBYTES]);
+pub struct Key(pub [u8; KEYBYTES]);
 
 newtype_drop!(Key);
 newtype_clone!(Key);
@@ -30,14 +34,11 @@ newtype_impl!(Key, KEYBYTES);
 /**
  * `Nonce` for symmetric authenticated encryption
  */
-#[deriving(Copy)]
-pub struct Nonce(pub [u8, ..NONCEBYTES]);
+#[derive(Copy)]
+pub struct Nonce(pub [u8; NONCEBYTES]);
 
 newtype_clone!(Nonce);
 newtype_impl!(Nonce, NONCEBYTES);
-
-pub const ZERO: [u8, ..32] = [0, ..32];
-pub const BOXZERO: [u8, ..16] = [0, ..16];
 
 /**
  * `gen_key()` randomly generates a secret key
@@ -47,7 +48,7 @@ pub const BOXZERO: [u8, ..16] = [0, ..16];
  * from sodiumoxide.
  */
 pub fn gen_key() -> Key {
-    let mut key = [0, ..KEYBYTES];
+    let mut key = [0; KEYBYTES];
     randombytes_into(&mut key);
     Key(key)
 }
@@ -60,7 +61,7 @@ pub fn gen_key() -> Key {
  * from sodiumoxide.
  */
 pub fn gen_nonce() -> Nonce {
-    let mut nonce = [0, ..NONCEBYTES];
+    let mut nonce = [0; NONCEBYTES];
     randombytes_into(&mut nonce);
     Nonce(nonce)
 }
@@ -153,7 +154,7 @@ pub fn open_inplace<'a>(c: &'a mut [u8],
 #[test]
 fn test_seal_open() {
     use randombytes::randombytes;
-    for i in range(0, 256u) {
+    for i in (0..256us) {
         let k = gen_key();
         let m = randombytes(i);
         let n = gen_nonce();
@@ -166,13 +167,13 @@ fn test_seal_open() {
 #[test]
 fn test_seal_open_tamper() {
     use randombytes::randombytes;
-    for i in range(0, 32u) {
+    for i in (0..32us) {
         let k = gen_key();
         let m = randombytes(i);
         let n = gen_nonce();
         let mut cv = seal(m.as_slice(), &n, &k);
         let c = cv.as_mut_slice();
-        for i in range(0, c.len()) {
+        for i in (0..c.len()) {
             c[i] ^= 0x20;
             assert!(None == open(c, &n, &k));
             c[i] ^= 0x20;
@@ -238,8 +239,8 @@ mod bench {
     use randombytes::randombytes;
     use super::*;
 
-    const BENCH_SIZES: [uint, ..14] = [0, 1, 2, 4, 8, 16, 32, 64, 
-                                       128, 256, 512, 1024, 2048, 4096];
+    const BENCH_SIZES: [usize; 14] = [0, 1, 2, 4, 8, 16, 32, 64,
+                                      128, 256, 512, 1024, 2048, 4096];
 
     #[bench]
     fn bench_seal_open(b: &mut test::Bencher) {
