@@ -109,7 +109,7 @@ pub fn seal_inplace<'a>(m: &'a mut [u8],
                         &Nonce(n): &Nonce,
                         &PublicKey(pk): &PublicKey,
                         &SecretKey(sk): &SecretKey) -> Option<&'a [u8]> {
-    if m.len() < ZERO.len() || m.slice_to(ZERO.len()) != ZERO.as_slice() {
+    if m.len() < ZERO.len() || &m[..ZERO.len()] != ZERO.as_slice() {
         return None
     }
     unsafe {
@@ -120,7 +120,7 @@ pub fn seal_inplace<'a>(m: &'a mut [u8],
                                                    pk.as_ptr(),
                                                    sk.as_ptr());
     }
-    Some(m.slice_from(BOXZERO.len()))
+    Some(&m[BOXZERO.len()..])
 }
 
 /**
@@ -153,7 +153,7 @@ pub fn open_inplace<'a>(c: &'a mut [u8],
                         &Nonce(n): &Nonce,
                         &PublicKey(pk): &PublicKey,
                         &SecretKey(sk): &SecretKey) -> Option<&'a [u8]> {
-    if c.len() < BOXZERO.len() || c.slice_to(BOXZERO.len()) != BOXZERO.as_slice() {
+    if c.len() < BOXZERO.len() || &c[..BOXZERO.len()] != BOXZERO.as_slice() {
         return None
     }
     unsafe {
@@ -165,7 +165,7 @@ pub fn open_inplace<'a>(c: &'a mut [u8],
             pk.as_ptr(),
             sk.as_ptr());
         if ret == 0 {
-            Some(c.slice_from(ZERO.len()))
+            Some(&c[ZERO.len()..])
         } else {
             None
         }
@@ -226,7 +226,7 @@ pub fn seal_precomputed_inplace<'a>(m: &'a mut [u8],
                                     &Nonce(n): &Nonce,
                                     &PrecomputedKey(k): &PrecomputedKey
                                     ) -> Option<&'a [u8]> {
-    if m.len() < ZERO.len() || m.slice_to(ZERO.len()) != ZERO.as_slice() {
+    if m.len() < ZERO.len() || &m[..ZERO.len()] != ZERO.as_slice() {
         return None
     }
     unsafe {
@@ -236,7 +236,7 @@ pub fn seal_precomputed_inplace<'a>(m: &'a mut [u8],
                                                            n.as_ptr(),
                                                            k.as_ptr());
     }
-    Some(m.slice_from(BOXZERO.len()))
+    Some(&m[BOXZERO.len()..])
 }
 /**
  * `open_precomputed()` verifies and decrypts a ciphertext `c` using a precomputed
@@ -266,7 +266,7 @@ pub fn open_precomputed_inplace<'a>(c: &'a mut [u8],
                                     &Nonce(n): &Nonce,
                                     &PrecomputedKey(k): &PrecomputedKey
                                     ) -> Option<&'a [u8]> {
-    if c.len() < BOXZERO.len() || c.slice_to(BOXZERO.len()) != BOXZERO.as_slice() {
+    if c.len() < BOXZERO.len() || &c[..BOXZERO.len()] != BOXZERO.as_slice() {
         return None
     }
     unsafe {
@@ -277,7 +277,7 @@ pub fn open_precomputed_inplace<'a>(c: &'a mut [u8],
             n.as_ptr(),
             k.as_ptr());
         if ret == 0 {
-            Some(c.slice_from(ZERO.len()))
+            Some(&c[ZERO.len()..])
         } else {
             None
         }
