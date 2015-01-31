@@ -119,7 +119,7 @@ pub fn seal_inplace<'a>(m: &'a mut [u8],
                         &Nonce(ref n): &Nonce,
                         &PublicKey(ref pk): &PublicKey,
                         &SecretKey(ref sk): &SecretKey) -> Option<&'a [u8]> {
-    if m.len() < ZERO.len() || &m[..ZERO.len()] != ZERO.as_slice() {
+    if m.len() < ZERO.len() || &m[..ZERO.len()] != ZERO {
         return None
     }
     unsafe {
@@ -164,7 +164,7 @@ pub fn open_inplace<'a>(c: &'a mut [u8],
                         &Nonce(ref n): &Nonce,
                         &PublicKey(ref pk): &PublicKey,
                         &SecretKey(ref sk): &SecretKey) -> Option<&'a [u8]> {
-    if c.len() < BOXZERO.len() || &c[..BOXZERO.len()] != BOXZERO.as_slice() {
+    if c.len() < BOXZERO.len() || &c[..BOXZERO.len()] != BOXZERO {
         return None
     }
     unsafe {
@@ -242,7 +242,7 @@ pub fn seal_precomputed_inplace<'a>(m: &'a mut [u8],
                                     &Nonce(ref n): &Nonce,
                                     &PrecomputedKey(ref k): &PrecomputedKey
                                     ) -> Option<&'a [u8]> {
-    if m.len() < ZERO.len() || &m[..ZERO.len()] != ZERO.as_slice() {
+    if m.len() < ZERO.len() || &m[..ZERO.len()] != ZERO {
         return None
     }
     unsafe {
@@ -285,7 +285,7 @@ pub fn open_precomputed_inplace<'a>(c: &'a mut [u8],
                                     &Nonce(ref n): &Nonce,
                                     &PrecomputedKey(ref k): &PrecomputedKey
                                     ) -> Option<&'a [u8]> {
-    if c.len() < BOXZERO.len() || &c[..BOXZERO.len()] != BOXZERO.as_slice() {
+    if c.len() < BOXZERO.len() || &c[..BOXZERO.len()] != BOXZERO {
         return None
     }
     unsafe {
@@ -531,7 +531,7 @@ mod bench {
         let mut ms: Vec<Vec<u8>> = BENCH_SIZES.iter().map(|s| {
             let mut v = Vec::with_capacity(ZERO.len() + *s);
             v.push_all(&ZERO);
-            v.push_all(randombytes(*s).as_slice());
+            v.push_all(&randombytes(*s));
             v
         }).collect();
         b.iter(|| {

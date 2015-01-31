@@ -94,7 +94,7 @@ pub fn seal(m: &[u8],
 pub fn seal_inplace<'a>(m: &'a mut [u8],
                         &Nonce(ref n): &Nonce,
                         &Key(ref k): &Key) -> Option<&'a [u8]> {
-    if m.len() < ZERO.len() || &m[..ZERO.len()] != ZERO.as_slice() {
+    if m.len() < ZERO.len() || &m[..ZERO.len()] != ZERO {
         return None
     } 
 
@@ -136,7 +136,7 @@ pub fn open(c: &[u8],
 pub fn open_inplace<'a>(c: &'a mut [u8],
                         &Nonce(ref n): &Nonce,
                         &Key(ref k): &Key) -> Option<&'a [u8]> {
-    if c.len() < BOXZERO.len() || &c[..BOXZERO.len()] != BOXZERO.as_slice() {
+    if c.len() < BOXZERO.len() || &c[..BOXZERO.len()] != BOXZERO {
         return None
     }
 
@@ -267,7 +267,7 @@ mod bench {
         let mut ms: Vec<Vec<u8>> = BENCH_SIZES.iter().map(|s| {
             let mut v = Vec::with_capacity(ZERO.len() + *s);
             v.push_all(&ZERO);
-            v.push_all(randombytes(*s).as_slice());
+            v.push_all(&randombytes(*s));
             v
         }).collect();
         b.iter(|| {
