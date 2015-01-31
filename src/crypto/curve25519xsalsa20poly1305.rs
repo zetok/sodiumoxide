@@ -14,12 +14,18 @@ use std::ops::{Index, Range, RangeFrom, RangeFull, RangeTo};
 use utils::marshal;
 use randombytes::randombytes_into;
 
-pub const PUBLICKEYBYTES: usize = ffi::crypto_box_curve25519xsalsa20poly1305_PUBLICKEYBYTES;
-pub const SECRETKEYBYTES: usize = ffi::crypto_box_curve25519xsalsa20poly1305_SECRETKEYBYTES;
-pub const NONCEBYTES: usize = ffi::crypto_box_curve25519xsalsa20poly1305_NONCEBYTES;
-pub const PRECOMPUTEDKEYBYTES: usize = ffi::crypto_box_curve25519xsalsa20poly1305_BEFORENMBYTES;
-const ZEROBYTES: usize = ffi::crypto_box_curve25519xsalsa20poly1305_ZEROBYTES;
-const BOXZEROBYTES: usize = ffi::crypto_box_curve25519xsalsa20poly1305_BOXZEROBYTES;
+pub const PUBLICKEYBYTES: usize =
+    ffi::crypto_box_curve25519xsalsa20poly1305_PUBLICKEYBYTES;
+pub const SECRETKEYBYTES: usize =
+    ffi::crypto_box_curve25519xsalsa20poly1305_SECRETKEYBYTES;
+pub const NONCEBYTES: usize =
+    ffi::crypto_box_curve25519xsalsa20poly1305_NONCEBYTES;
+pub const PRECOMPUTEDKEYBYTES: usize =
+    ffi::crypto_box_curve25519xsalsa20poly1305_BEFORENMBYTES;
+const ZEROBYTES: usize =
+    ffi::crypto_box_curve25519xsalsa20poly1305_ZEROBYTES;
+const BOXZEROBYTES: usize =
+    ffi::crypto_box_curve25519xsalsa20poly1305_BOXZEROBYTES;
 pub const ZERO: [u8; ZEROBYTES] = [0; ZEROBYTES];
 pub const BOXZERO: [u8; BOXZEROBYTES] = [0; BOXZEROBYTES];
 
@@ -54,7 +60,8 @@ newtype_clone!(Nonce);
 newtype_impl!(Nonce, NONCEBYTES);
 
 /**
- * `gen_keypair()` randomly generates a secret key and a corresponding public key.
+ * `gen_keypair()` randomly generates a secret key and a corresponding
+ * public key.
  *
  * THREAD SAFETY: `gen_keypair()` is thread-safe provided that you have
  * called `sodiumoxide::init()` once before using any other function
@@ -85,8 +92,9 @@ pub fn gen_nonce() -> Nonce {
 }
 
 /**
- * `seal()` encrypts and authenticates a message `m` using the senders secret key `sk`,
- * the receivers public key `pk` and a nonce `n`. It returns a ciphertext `c`.
+ * `seal()` encrypts and authenticates a message `m` using the senders
+ * secret key `sk`, the receivers public key `pk` and a nonce `n`.
+ * It returns a ciphertext `c`.
  */
 pub fn seal(m: &[u8],
             n: &Nonce,
@@ -98,8 +106,9 @@ pub fn seal(m: &[u8],
 }
 
 /**
- * `seal_inplace()` encrypts and authenticates a message `m` using the senders secret key `sk`,
- * the receivers public key `pk` and a nonce `n`. It returns a ciphertext `Some(c)`.
+ * `seal_inplace()` encrypts and authenticates a message `m` using the
+ * senders secret key `sk`, the receivers public key `pk` and a nonce `n`.
+ * It returns a ciphertext `Some(c)`.
  *
  * `seal_inplace()` requires that the first `ZERO.len()` bytes of the message
  * are equal to 0, otherwise it returns `None`.
@@ -125,8 +134,9 @@ pub fn seal_inplace<'a>(m: &'a mut [u8],
 }
 
 /**
- * `open()` verifies and decrypts a ciphertext `c` using the receiver's secret key `sk`,
- * the senders public key `pk`, and a nonce `n`. It returns a plaintext `Some(m)`.
+ * `open()` verifies and decrypts a ciphertext `c` using the receiver's
+ * secret key `sk`, the senders public key `pk`, and a nonce `n`.
+ * It returns a plaintext `Some(m)`.
  * If the ciphertext fails verification, `open()` returns `None`.
  */
 pub fn open(c: &[u8],
@@ -174,10 +184,12 @@ pub fn open_inplace<'a>(c: &'a mut [u8],
 }
 
 /**
- * Applications that send several messages to the same receiver can gain speed by
- * splitting `seal()` into two steps, `precompute()` and `seal_precomputed()`.
- * Similarly, applications that receive several messages from the same sender can gain
- * speed by splitting `open()` into two steps, `precompute()` and `open_precomputed()`.
+ * Applications that send several messages to the same receiver can gain
+ * speed by splitting `seal()` into two steps, `precompute()` and
+ * `seal_precomputed()`.
+ * Similarly, applications that receive several messages from the same
+ * sender can gain speed by splitting `open()` into two steps,
+ * `precompute()` and `open_precomputed()`.
  *
  * When a `PrecomputedKey` goes out of scope its contents will be zeroed out
  */
@@ -188,7 +200,8 @@ newtype_clone!(PrecomputedKey);
 newtype_impl!(PrecomputedKey, PRECOMPUTEDKEYBYTES);
 
 /**
- * `precompute()` computes an intermediate key that can be used by `seal_precomputed()`
+ * `precompute()` computes an intermediate key that can be used by
+ * `seal_precomputed()`
  * and `open_precomputed()`
  */
 pub fn precompute(&PublicKey(ref pk): &PublicKey,
@@ -203,8 +216,9 @@ pub fn precompute(&PublicKey(ref pk): &PublicKey,
 }
 
 /**
- * `seal_precomputed()` encrypts and authenticates a message `m` using a precomputed key `k`,
- * and a nonce `n`. It returns a ciphertext `c`.
+ * `seal_precomputed()` encrypts and authenticates a message `m`
+ * using a precomputed key `k`, and a nonce `n`.
+ * It returns a ciphertext `c`.
  */
 pub fn seal_precomputed(m: &[u8],
                         n: &Nonce,
@@ -215,11 +229,12 @@ pub fn seal_precomputed(m: &[u8],
 }
 
 /**
- * `seal_precomputed_inplace()` encrypts and authenticates a message `m` using a precomputed key `k`,
- * and a nonce `n`. It returns a ciphertext `c`.
+ * `seal_precomputed_inplace()` encrypts and authenticates a message `m`
+ * using a precomputed key `k`, and a nonce `n`.
+ * It returns a ciphertext `c`.
  *
- * `seal_precomputed_inplace()` requires that the first `ZERO.len()` bytes of the message
- * are equal to 0, otherwise it returns `None`.
+ * `seal_precomputed_inplace()` requires that the first `ZERO.len()`
+ * bytes of the message are equal to 0, otherwise it returns `None`.
  * `seal_inplace()` will modify the message in place, but returns a slice
  * pointing to the start of the actual ciphertext (minus padding).
  */
@@ -231,17 +246,19 @@ pub fn seal_precomputed_inplace<'a>(m: &'a mut [u8],
         return None
     }
     unsafe {
-        ffi::crypto_box_curve25519xsalsa20poly1305_afternm(m.as_mut_ptr(),
-                                                           m.as_ptr(),
-                                                           m.len() as c_ulonglong,
-                                                           n,
-                                                           k);
+        ffi::crypto_box_curve25519xsalsa20poly1305_afternm(
+            m.as_mut_ptr(),
+            m.as_ptr(),
+            m.len() as c_ulonglong,
+            n,
+            k);
     }
     Some(&m[BOXZERO.len()..])
 }
 /**
- * `open_precomputed()` verifies and decrypts a ciphertext `c` using a precomputed
- * key `k` and a nonce `n`. It returns a plaintext `Some(m)`.
+ * `open_precomputed()` verifies and decrypts a ciphertext `c` using a
+ * precomputed key `k` and a nonce `n`.
+ * It returns a plaintext `Some(m)`.
  * If the ciphertext fails verification, `open_precomputed()` returns `None`.
  */
 pub fn open_precomputed(c: &[u8],
@@ -253,8 +270,9 @@ pub fn open_precomputed(c: &[u8],
 }
 
 /**
- * `open_precomputed_inplace()` verifies and decrypts a ciphertext `c` using a precomputed
- * key `k` and a nonce `n`. It returns a plaintext `Some(m)`.
+ * `open_precomputed_inplace()` verifies and decrypts a ciphertext `c`
+ * using a precomputed key `k` and a nonce `n`.
+ * It returns a plaintext `Some(m)`.
  * If the ciphertext fails verification, `open_precomputed()` returns `None`.
  *
  * `open_precomputed_inplace()` requires that the first
