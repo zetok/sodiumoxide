@@ -6,10 +6,11 @@ use ffi;
 use libc::c_ulonglong;
 use std::intrinsics::volatile_set_memory;
 use std::iter::repeat;
+use std::ops::{Index, Range, RangeFrom, RangeFull, RangeTo};
 
-pub const SECRETKEYBYTES: usize = ffi::crypto_sign_edwards25519sha512batch_SECRETKEYBYTES as usize;
-pub const PUBLICKEYBYTES: usize = ffi::crypto_sign_edwards25519sha512batch_PUBLICKEYBYTES as usize;
-pub const SIGNATUREBYTES: usize = ffi::crypto_sign_edwards25519sha512batch_BYTES as usize;
+pub const SECRETKEYBYTES: usize = ffi::crypto_sign_edwards25519sha512batch_SECRETKEYBYTES;
+pub const PUBLICKEYBYTES: usize = ffi::crypto_sign_edwards25519sha512batch_PUBLICKEYBYTES;
+pub const SIGNATUREBYTES: usize = ffi::crypto_sign_edwards25519sha512batch_BYTES;
 
 /**
  * `SecretKey` for signatures
@@ -44,8 +45,8 @@ pub fn gen_keypair() -> (PublicKey, SecretKey) {
     unsafe {
         let mut pk = [0u8; PUBLICKEYBYTES];
         let mut sk = [0u8; SECRETKEYBYTES];
-        ffi::crypto_sign_edwards25519sha512batch_keypair(pk.as_mut_ptr(),
-                                                    sk.as_mut_ptr());
+        ffi::crypto_sign_edwards25519sha512batch_keypair(&mut pk,
+                                                         &mut sk);
         (PublicKey(pk), SecretKey(sk))
     }
 }
@@ -55,7 +56,7 @@ pub fn gen_keypair() -> (PublicKey, SecretKey) {
  * `sign()` returns the resulting signed message `sm`.
  */
 pub fn sign(m: &[u8],
-            &SecretKey(sk): &SecretKey) -> Vec<u8> {
+            &SecretKey(ref sk): &SecretKey) -> Vec<u8> {
     unsafe {
         let mut sm: Vec<u8> = repeat(0u8).take(m.len() + SIGNATUREBYTES).collect();
         let mut smlen = 0;
@@ -63,7 +64,7 @@ pub fn sign(m: &[u8],
                                                  &mut smlen,
                                                  m.as_ptr(),
                                                  m.len() as c_ulonglong,
-                                                 sk.as_ptr());
+                                                 sk);
         sm.truncate(smlen as usize);
         sm
     }
@@ -75,7 +76,7 @@ pub fn sign(m: &[u8],
  * If the signature fails verification, `verify()` returns `None`.
  */
 pub fn verify(sm: &[u8],
-              &PublicKey(pk): &PublicKey) -> Option<Vec<u8>> {
+              &PublicKey(ref pk): &PublicKey) -> Option<Vec<u8>> {
     unsafe {
         let mut m: Vec<u8> = repeat(0u8).take(sm.len()).collect();
         let mut mlen = 0;
@@ -83,7 +84,7 @@ pub fn verify(sm: &[u8],
                                                          &mut mlen,
                                                          sm.as_ptr(),
                                                          sm.len() as c_ulonglong,
-                                                         pk.as_ptr()) == 0 {
+                                                         pk) == 0 {
             m.truncate(mlen as usize);
             Some(m)
         } else {
@@ -98,8 +99,8 @@ fn test_sign_verify() {
     for i in (0..256us) {
         let (pk, sk) = gen_keypair();
         let m = randombytes(i);
-        let sm = sign(m.as_slice(), &sk);
-        let m2 = verify(sm.as_slice(), &pk);
+        let sm = sign(&m, &sk);
+        let m2 = verify(&sm, &pk);
         assert!(Some(m) == m2);
     }
 }
@@ -110,7 +111,7 @@ fn test_sign_verify_tamper() {
     for i in (0..32us) {
         let (pk, sk) = gen_keypair();
         let m = randombytes(i);
-        let mut smv = sign(m.as_slice(), &sk);
+        let mut smv = sign(&m, &sk);
         let sm = smv.as_mut_slice();
         for j in (0..sm.len()) {
             sm[j] ^= 0x20;
@@ -137,7 +138,7 @@ mod bench {
         }).collect();
         b.iter(|| {
             for m in ms.iter() {
-                sign(m.as_slice(), &sk);
+                sign(m, &sk);
             }
         });
     }
@@ -147,11 +148,11 @@ mod bench {
         let (pk, sk) = gen_keypair();
         let sms: Vec<Vec<u8>> = BENCH_SIZES.iter().map(|s| {
             let m = randombytes(*s);
-            sign(m.as_slice(), &sk)
+            sign(&m, &sk)
         }).collect();
         b.iter(|| {
             for sm in sms.iter() {
-                verify(sm.as_slice(), &pk);
+                verify(sm, &pk);
             }
         });
     }

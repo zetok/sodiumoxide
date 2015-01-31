@@ -5,10 +5,11 @@
 use ffi;
 use libc::c_ulonglong;
 use std::intrinsics::volatile_set_memory;
+use std::ops::{Index, Range, RangeFrom, RangeFull, RangeTo};
 use randombytes::randombytes_into;
 
-pub const HASHBYTES: usize = ffi::crypto_shorthash_siphash24_BYTES as usize;
-pub const KEYBYTES: usize = ffi::crypto_shorthash_siphash24_KEYBYTES as usize;
+pub const HASHBYTES: usize = ffi::crypto_shorthash_siphash24_BYTES;
+pub const KEYBYTES: usize = ffi::crypto_shorthash_siphash24_KEYBYTES;
 
 /**
  * Digest-structure
@@ -49,12 +50,12 @@ pub fn gen_key() -> Key {
  * returns a hash `h`.
  */
 pub fn shorthash(m: &[u8],
-                 &Key(k): &Key) -> Digest {
+                 &Key(ref k): &Key) -> Digest {
     unsafe {
         let mut h = [0; HASHBYTES];
-        ffi::crypto_shorthash_siphash24(h.as_mut_ptr(),
-                                   m.as_ptr(), m.len() as c_ulonglong,
-                                   k.as_ptr());
+        ffi::crypto_shorthash_siphash24(&mut h, m.as_ptr(),
+                                        m.len() as c_ulonglong,
+                                        k);
         Digest(h)
     }
 }
@@ -154,7 +155,7 @@ mod bench {
         }).collect();
         b.iter(|| {
             for m in ms.iter() {
-                shorthash(m.as_slice(), &k);
+                shorthash(m, &k);
             }
         });
     }

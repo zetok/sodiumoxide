@@ -9,13 +9,16 @@ authenticity.
 use ffi;
 use libc::c_ulonglong;
 use std::intrinsics::volatile_set_memory;
+use std::ops::{Index, Range, RangeFrom, RangeFull, RangeTo};
 use utils::marshal;
 use randombytes::randombytes_into;
 
-pub const KEYBYTES: usize = ffi::crypto_secretbox_xsalsa20poly1305_KEYBYTES as usize;
-pub const NONCEBYTES: usize = ffi::crypto_secretbox_xsalsa20poly1305_NONCEBYTES as usize;
-const ZEROBYTES: usize = ffi::crypto_secretbox_xsalsa20poly1305_ZEROBYTES as usize;
-const BOXZEROBYTES: usize = ffi::crypto_secretbox_xsalsa20poly1305_BOXZEROBYTES as usize;
+pub const KEYBYTES: usize = ffi::crypto_secretbox_xsalsa20poly1305_KEYBYTES;
+pub const NONCEBYTES: usize =
+    ffi::crypto_secretbox_xsalsa20poly1305_NONCEBYTES;
+const ZEROBYTES: usize = ffi::crypto_secretbox_xsalsa20poly1305_ZEROBYTES;
+const BOXZEROBYTES: usize =
+    ffi::crypto_secretbox_xsalsa20poly1305_BOXZEROBYTES;
 pub const ZERO: [u8; ZEROBYTES] = [0; ZEROBYTES];
 pub const BOXZERO: [u8; BOXZEROBYTES] = [0; BOXZEROBYTES];
 
@@ -89,8 +92,8 @@ pub fn seal(m: &[u8],
  * padding).
  */
 pub fn seal_inplace<'a>(m: &'a mut [u8],
-                        &Nonce(n): &Nonce,
-                        &Key(k): &Key) -> Option<&'a [u8]> {
+                        &Nonce(ref n): &Nonce,
+                        &Key(ref k): &Key) -> Option<&'a [u8]> {
     if m.len() < ZERO.len() || &m[..ZERO.len()] != ZERO.as_slice() {
         return None
     } 
@@ -99,8 +102,8 @@ pub fn seal_inplace<'a>(m: &'a mut [u8],
         ffi::crypto_secretbox_xsalsa20poly1305(m.as_mut_ptr(),
                                                m.as_ptr(),
                                                m.len() as c_ulonglong,
-                                               n.as_ptr(),
-                                               k.as_ptr());
+                                               n,
+                                               k);
     }
     Some(&m[BOXZERO.len()..])
 }
@@ -130,8 +133,8 @@ pub fn open(c: &[u8],
  * pointing to the start of the actual plaintext (minus padding).
  */
 pub fn open_inplace<'a>(c: &'a mut [u8],
-                        &Nonce(n): &Nonce,
-                        &Key(k): &Key) -> Option<&'a [u8]> {
+                        &Nonce(ref n): &Nonce,
+                        &Key(ref k): &Key) -> Option<&'a [u8]> {
     if c.len() < BOXZERO.len() || &c[..BOXZERO.len()] != BOXZERO.as_slice() {
         return None
     }
@@ -141,13 +144,13 @@ pub fn open_inplace<'a>(c: &'a mut [u8],
             c.as_mut_ptr(),
             c.as_ptr(),
             c.len() as c_ulonglong,
-            n.as_ptr(),
-            k.as_ptr());
+            n,
+            k);
         if ret == 0 {
             Some(&c[ZERO.len()..])
         } else {
             None
-    }
+        }
     }
 }
                         
@@ -158,8 +161,8 @@ fn test_seal_open() {
         let k = gen_key();
         let m = randombytes(i);
         let n = gen_nonce();
-        let c = seal(m.as_slice(), &n, &k);
-        let opened = open(c.as_slice(), &n, &k);
+        let c = seal(&m, &n, &k);
+        let opened = open(&c, &n, &k);
         assert!(Some(m) == opened);
     }
 }
@@ -171,7 +174,7 @@ fn test_seal_open_tamper() {
         let k = gen_key();
         let m = randombytes(i);
         let n = gen_nonce();
-        let mut cv = seal(m.as_slice(), &n, &k);
+        let mut cv = seal(&m, &n, &k);
         let c = cv.as_mut_slice();
         for i in (0..c.len()) {
             c[i] ^= 0x20;
@@ -227,9 +230,9 @@ fn test_vector_1() {
                       ,0x79,0x73,0xf6,0x22,0xa4,0x3d,0x14,0xa6
                       ,0x59,0x9b,0x1f,0x65,0x4c,0xb4,0x5a,0x74
                       ,0xe3,0x55,0xa5];
-    let c = seal(m.as_slice(), &nonce, &firstkey);
+    let c = seal(&m, &nonce, &firstkey);
     assert!(c == c_expected);
-    let m2 = open(c.as_slice(), &nonce, &firstkey);
+    let m2 = open(&c, &nonce, &firstkey);
     assert!(Some(m) == m2);
 }
 
@@ -251,7 +254,7 @@ mod bench {
         }).collect();
         b.iter(|| {
             for m in ms.iter() {
-                open(seal(m.as_slice(), &n, &k).as_slice(), &n, &k).unwrap();
+                open(&seal(&m, &n, &k), &n, &k).unwrap();
             }
         });
     }

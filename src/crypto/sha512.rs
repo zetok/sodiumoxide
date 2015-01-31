@@ -8,12 +8,13 @@ inspire satisfactory levels of confidence. One can hope that NIST's
 SHA-3 competition will improve the situation.
 */
 #[cfg(test)]
-extern crate serialize;
+extern crate "rustc-serialize" as rustc_serialize;
+use std::ops::{Index, Range, RangeFrom, RangeFull, RangeTo};
 use ffi::{crypto_hash_sha512, crypto_hash_sha512_BYTES};
 use libc::c_ulonglong;
 
 hash_module!(crypto_hash_sha512,
-             crypto_hash_sha512_BYTES as usize,
+             crypto_hash_sha512_BYTES,
              128);
 
 #[test]
@@ -30,15 +31,15 @@ fn test_vector_1() {
                      ,0x1d, 0x13, 0x8b, 0xc7, 0xaa, 0xd1, 0xaf, 0x3e
                      ,0xf7, 0xbf, 0xd5, 0xec, 0x64, 0x6d, 0x6c, 0x28];
     let Digest(h) = hash(&x);
-    assert!(h.as_slice() == h_expected.as_slice());
+    assert!(&h[] == &h_expected[]);
 }
 
 #[cfg(test)]
 fn test_nist_vector(filename: &str) {
-    use self::serialize::hex::{FromHex};
+    use self::rustc_serialize::hex::{FromHex};
     use std::path::Path;
-    use std::io::BufferedReader;
-    use std::io::File;
+    use std::old_io::BufferedReader;
+    use std::old_io::File;
 
     let p = &Path::new(filename);
     let mut r = BufferedReader::new(File::open(p).unwrap());
@@ -47,7 +48,7 @@ fn test_nist_vector(filename: &str) {
             Err(_) => break,
             Ok(line) => line
         };
-        if line.as_slice().starts_with("Len = ") {
+        if line.starts_with("Len = ") {
             let s = &line[6..];
             let len: usize = s.trim().parse().unwrap();
             let line2 = r.read_line().unwrap();
@@ -56,7 +57,7 @@ fn test_nist_vector(filename: &str) {
             let line3 = r.read_line().unwrap();
             let md = line3[5..].from_hex().unwrap();
             let Digest(digest) = hash(msg);
-            assert!(digest.as_slice() == md.as_slice());
+            assert!(&digest[] == &md[]);
         }
     }
 }

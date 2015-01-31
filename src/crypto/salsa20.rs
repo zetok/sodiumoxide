@@ -10,12 +10,13 @@ use ffi::{crypto_stream_salsa20,
 use libc::c_ulonglong;
 use std::intrinsics::volatile_set_memory;
 use std::iter::repeat;
+use std::ops::{Index, Range, RangeFrom, RangeFull, RangeTo};
 use randombytes::randombytes_into;
 
 stream_module!(crypto_stream_salsa20,
                crypto_stream_salsa20_xor,
-               crypto_stream_salsa20_KEYBYTES as usize,
-               crypto_stream_salsa20_NONCEBYTES as usize);
+               crypto_stream_salsa20_KEYBYTES,
+               crypto_stream_salsa20_NONCEBYTES);
 
 #[test]
 fn test_vector_1() {
@@ -31,6 +32,6 @@ fn test_vector_1() {
                            0x56, 0x06, 0x9b, 0x12, 0xf9, 0x18, 0x69, 0x1a,
                            0x98, 0xf7, 0xdf, 0xb2, 0xca, 0x03, 0x93, 0xc9,
                            0x6b, 0xbf, 0xc6, 0xb1, 0xfb, 0xd6, 0x30, 0xa2];
-    let Digest(digest) = hash(output.as_slice());
+    let Digest(digest) = hash(&output);
     assert!(digest == digest_expected);
 }

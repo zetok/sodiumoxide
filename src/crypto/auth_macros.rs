@@ -58,13 +58,13 @@ pub fn gen_key() -> Key {
  * The function returns an authenticator tag.
  */
 pub fn authenticate(m: &[u8],
-                    &Key(k): &Key) -> Tag {
+                    &Key(ref k): &Key) -> Tag {
     unsafe {
         let mut tag = [0; TAGBYTES];
-        $auth_name(tag.as_mut_ptr(),
+        $auth_name(&mut tag,
                    m.as_ptr(),
                    m.len() as c_ulonglong,
-                   k.as_ptr());
+                   k);
         Tag(tag)
     }
 }
@@ -73,13 +73,13 @@ pub fn authenticate(m: &[u8],
  * `verify()` returns `true` if `tag` is a correct authenticator of message `m`
  * under a secret key `k`. Otherwise it returns false.
  */
-pub fn verify(&Tag(tag): &Tag, m: &[u8],
-              &Key(k): &Key) -> bool {
+pub fn verify(&Tag(ref tag): &Tag, m: &[u8],
+              &Key(ref k): &Key) -> bool {
     unsafe {
-        $verify_name(tag.as_ptr(),
+        $verify_name(tag,
                      m.as_ptr(),
                      m.len() as c_ulonglong,
-                     k.as_ptr()) == 0
+                     k) == 0
     }
 }
 
@@ -89,8 +89,8 @@ fn test_auth_verify() {
     for i in (0..256us) {
         let k = gen_key();
         let m = randombytes(i);
-        let tag = authenticate(m.as_slice(), &k);
-        assert!(verify(&tag, m.as_slice(), &k));
+        let tag = authenticate(&m, &k);
+        assert!(verify(&tag, &m, &k));
     }
 }
 
@@ -101,10 +101,10 @@ fn test_auth_verify_tamper() {
         let k = gen_key();
         let mut mv = randombytes(i);
         let m = mv.as_mut_slice();
-        let Tag(mut tagbuf) = authenticate(m.as_slice(), &k);
+        let Tag(mut tagbuf) = authenticate(&m, &k);
         for j in (0..m.len()) {
             m[j] ^= 0x20;
-            assert!(!verify(&Tag(tagbuf), m.as_slice(), &k));
+            assert!(!verify(&Tag(tagbuf), &m, &k));
             m[j] ^= 0x20;
         }
         for j in (0..tagbuf.len()) {
@@ -132,7 +132,7 @@ mod bench {
         }).collect();
         b.iter(|| {
             for m in ms.iter() {
-                authenticate(m.as_slice(), &k);
+                authenticate(&m, &k);
             }
         });
     }
@@ -144,11 +144,11 @@ mod bench {
             randombytes(*s)
         }).collect();
         let tags: Vec<Tag> = ms.iter().map(|m| {
-            authenticate(m.as_slice(), &k)
+            authenticate(&m, &k)
         }).collect();
         b.iter(|| {
             for (m, t) in ms.iter().zip(tags.iter()) {
-                verify(t, m.as_slice(), &k);
+                verify(t, &m, &k);
             }
         });
     }

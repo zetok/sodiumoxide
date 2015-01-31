@@ -61,14 +61,14 @@ pub fn gen_nonce() -> Nonce {
  * secret key `k` and a nonce `n`.
  */
 pub fn stream(len: usize,
-              &Nonce(n): &Nonce,
-              &Key(k): &Key) -> Vec<u8> {
+              &Nonce(ref n): &Nonce,
+              &Key(ref k): &Key) -> Vec<u8> {
     unsafe {
         let mut c: Vec<u8> = repeat(0u8).take(len).collect();
         $stream_name(c.as_mut_ptr(),
                      c.len() as c_ulonglong,
-                     n.as_ptr(),
-                     k.as_ptr());
+                     n,
+                     k);
         c
     }
 }
@@ -82,15 +82,15 @@ pub fn stream(len: usize,
  * Consequently `stream_xor()` can also be used to decrypt.
  */
 pub fn stream_xor(m: &[u8],
-                  &Nonce(n): &Nonce,
-                  &Key(k): &Key) -> Vec<u8> {
+                  &Nonce(ref n): &Nonce,
+                  &Key(ref k): &Key) -> Vec<u8> {
     unsafe {
         let mut c: Vec<u8> = repeat(0u8).take(m.len()).collect();
         $xor_name(c.as_mut_ptr(),
                   m.as_ptr(),
                   m.len() as c_ulonglong,
-                  n.as_ptr(),
-                  k.as_ptr());
+                  n,
+                  k);
         c
     }
 }
@@ -104,14 +104,14 @@ pub fn stream_xor(m: &[u8],
 * Consequently `stream_xor_inplace()` can also be used to decrypt.
 */
 pub fn stream_xor_inplace(m: &mut [u8],
-                          &Nonce(n): &Nonce,
-                          &Key(k): &Key) {
+                          &Nonce(ref n): &Nonce,
+                          &Key(ref k): &Key) {
     unsafe {
         $xor_name(m.as_mut_ptr(),
                   m.as_ptr(),
                   m.len() as c_ulonglong,
-                  n.as_ptr(),
-                  k.as_ptr());
+                  n,
+                  k);
     }
 }
 
@@ -122,8 +122,8 @@ fn test_encrypt_decrypt() {
         let k = gen_key();
         let n = gen_nonce();
         let m = randombytes(i);
-        let c = stream_xor(m.as_slice(), &n, &k);
-        let m2 = stream_xor(c.as_slice(), &n, &k);
+        let c = stream_xor(&m, &n, &k);
+        let m2 = stream_xor(&c, &n, &k);
         assert!(m == m2);
     }
 }
@@ -140,7 +140,7 @@ fn test_stream_xor() {
         for (e, v) in c.iter_mut().zip(s.iter()) {
             *e ^= *v;
         }
-        let c2 = stream_xor(m.as_slice(), &n, &k);
+        let c2 = stream_xor(&m, &n, &k);
         assert!(c == c2);
     }
 }

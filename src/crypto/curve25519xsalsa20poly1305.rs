@@ -10,15 +10,16 @@ third-party unforgeability.
 use ffi;
 use libc::c_ulonglong;
 use std::intrinsics::volatile_set_memory;
+use std::ops::{Index, Range, RangeFrom, RangeFull, RangeTo};
 use utils::marshal;
 use randombytes::randombytes_into;
 
-pub const PUBLICKEYBYTES: usize = ffi::crypto_box_curve25519xsalsa20poly1305_PUBLICKEYBYTES as usize;
-pub const SECRETKEYBYTES: usize = ffi::crypto_box_curve25519xsalsa20poly1305_SECRETKEYBYTES as usize;
-pub const NONCEBYTES: usize = ffi::crypto_box_curve25519xsalsa20poly1305_NONCEBYTES as usize;
-pub const PRECOMPUTEDKEYBYTES: usize = ffi::crypto_box_curve25519xsalsa20poly1305_BEFORENMBYTES as usize;
-const ZEROBYTES: usize = ffi::crypto_box_curve25519xsalsa20poly1305_ZEROBYTES as usize;
-const BOXZEROBYTES: usize = ffi::crypto_box_curve25519xsalsa20poly1305_BOXZEROBYTES as usize;
+pub const PUBLICKEYBYTES: usize = ffi::crypto_box_curve25519xsalsa20poly1305_PUBLICKEYBYTES;
+pub const SECRETKEYBYTES: usize = ffi::crypto_box_curve25519xsalsa20poly1305_SECRETKEYBYTES;
+pub const NONCEBYTES: usize = ffi::crypto_box_curve25519xsalsa20poly1305_NONCEBYTES;
+pub const PRECOMPUTEDKEYBYTES: usize = ffi::crypto_box_curve25519xsalsa20poly1305_BEFORENMBYTES;
+const ZEROBYTES: usize = ffi::crypto_box_curve25519xsalsa20poly1305_ZEROBYTES;
+const BOXZEROBYTES: usize = ffi::crypto_box_curve25519xsalsa20poly1305_BOXZEROBYTES;
 pub const ZERO: [u8; ZEROBYTES] = [0; ZEROBYTES];
 pub const BOXZERO: [u8; BOXZEROBYTES] = [0; BOXZEROBYTES];
 
@@ -64,8 +65,8 @@ pub fn gen_keypair() -> (PublicKey, SecretKey) {
         let mut pk = [0u8; PUBLICKEYBYTES];
         let mut sk = [0u8; SECRETKEYBYTES];
         ffi::crypto_box_curve25519xsalsa20poly1305_keypair(
-            pk.as_mut_ptr(),
-            sk.as_mut_ptr());
+            &mut pk,
+            &mut sk);
         (PublicKey(pk), SecretKey(sk))
     }
 }
@@ -106,9 +107,9 @@ pub fn seal(m: &[u8],
  * pointing to the the actual ciphertext (minus padding).
  */
 pub fn seal_inplace<'a>(m: &'a mut [u8],
-                        &Nonce(n): &Nonce,
-                        &PublicKey(pk): &PublicKey,
-                        &SecretKey(sk): &SecretKey) -> Option<&'a [u8]> {
+                        &Nonce(ref n): &Nonce,
+                        &PublicKey(ref pk): &PublicKey,
+                        &SecretKey(ref sk): &SecretKey) -> Option<&'a [u8]> {
     if m.len() < ZERO.len() || &m[..ZERO.len()] != ZERO.as_slice() {
         return None
     }
@@ -116,9 +117,9 @@ pub fn seal_inplace<'a>(m: &'a mut [u8],
         ffi::crypto_box_curve25519xsalsa20poly1305(m.as_mut_ptr(),
                                                    m.as_ptr(),
                                                    m.len() as c_ulonglong,
-                                                   n.as_ptr(),
-                                                   pk.as_ptr(),
-                                                   sk.as_ptr());
+                                                   n,
+                                                   pk,
+                                                   sk);
     }
     Some(&m[BOXZERO.len()..])
 }
@@ -150,9 +151,9 @@ pub fn open(c: &[u8],
  * padding).
  */
 pub fn open_inplace<'a>(c: &'a mut [u8],
-                        &Nonce(n): &Nonce,
-                        &PublicKey(pk): &PublicKey,
-                        &SecretKey(sk): &SecretKey) -> Option<&'a [u8]> {
+                        &Nonce(ref n): &Nonce,
+                        &PublicKey(ref pk): &PublicKey,
+                        &SecretKey(ref sk): &SecretKey) -> Option<&'a [u8]> {
     if c.len() < BOXZERO.len() || &c[..BOXZERO.len()] != BOXZERO.as_slice() {
         return None
     }
@@ -161,9 +162,9 @@ pub fn open_inplace<'a>(c: &'a mut [u8],
             c.as_mut_ptr(),
             c.as_ptr(),
             c.len() as c_ulonglong,
-            n.as_ptr(),
-            pk.as_ptr(),
-            sk.as_ptr());
+            n,
+            pk,
+            sk);
         if ret == 0 {
             Some(&c[ZERO.len()..])
         } else {
@@ -190,13 +191,13 @@ newtype_impl!(PrecomputedKey, PRECOMPUTEDKEYBYTES);
  * `precompute()` computes an intermediate key that can be used by `seal_precomputed()`
  * and `open_precomputed()`
  */
-pub fn precompute(&PublicKey(pk): &PublicKey,
-                  &SecretKey(sk): &SecretKey) -> PrecomputedKey {
+pub fn precompute(&PublicKey(ref pk): &PublicKey,
+                  &SecretKey(ref sk): &SecretKey) -> PrecomputedKey {
     let mut k = [0u8; PRECOMPUTEDKEYBYTES];
     unsafe {
-        ffi::crypto_box_curve25519xsalsa20poly1305_beforenm(k.as_mut_ptr(),
-                                                       pk.as_ptr(),
-                                                       sk.as_ptr());
+        ffi::crypto_box_curve25519xsalsa20poly1305_beforenm(&mut k,
+                                                            pk,
+                                                            sk);
     }
     PrecomputedKey(k)
 }
@@ -223,8 +224,8 @@ pub fn seal_precomputed(m: &[u8],
  * pointing to the start of the actual ciphertext (minus padding).
  */
 pub fn seal_precomputed_inplace<'a>(m: &'a mut [u8],
-                                    &Nonce(n): &Nonce,
-                                    &PrecomputedKey(k): &PrecomputedKey
+                                    &Nonce(ref n): &Nonce,
+                                    &PrecomputedKey(ref k): &PrecomputedKey
                                     ) -> Option<&'a [u8]> {
     if m.len() < ZERO.len() || &m[..ZERO.len()] != ZERO.as_slice() {
         return None
@@ -233,8 +234,8 @@ pub fn seal_precomputed_inplace<'a>(m: &'a mut [u8],
         ffi::crypto_box_curve25519xsalsa20poly1305_afternm(m.as_mut_ptr(),
                                                            m.as_ptr(),
                                                            m.len() as c_ulonglong,
-                                                           n.as_ptr(),
-                                                           k.as_ptr());
+                                                           n,
+                                                           k);
     }
     Some(&m[BOXZERO.len()..])
 }
@@ -263,8 +264,8 @@ pub fn open_precomputed(c: &[u8],
  * the actual plaintext (minus padding).
  */
 pub fn open_precomputed_inplace<'a>(c: &'a mut [u8],
-                                    &Nonce(n): &Nonce,
-                                    &PrecomputedKey(k): &PrecomputedKey
+                                    &Nonce(ref n): &Nonce,
+                                    &PrecomputedKey(ref k): &PrecomputedKey
                                     ) -> Option<&'a [u8]> {
     if c.len() < BOXZERO.len() || &c[..BOXZERO.len()] != BOXZERO.as_slice() {
         return None
@@ -274,8 +275,8 @@ pub fn open_precomputed_inplace<'a>(c: &'a mut [u8],
             c.as_mut_ptr(),
             c.as_ptr(),
             c.len() as c_ulonglong,
-            n.as_ptr(),
-            k.as_ptr());
+            n,
+            k);
         if ret == 0 {
             Some(&c[ZERO.len()..])
         } else {
@@ -292,8 +293,8 @@ fn test_seal_open() {
         let (pk2, sk2) = gen_keypair();
         let m = randombytes(i);
         let n = gen_nonce();
-        let c = seal(m.as_slice(), &n, &pk1, &sk2);
-        let opened = open(c.as_slice(), &n, &pk2, &sk1);
+        let c = seal(&m, &n, &pk1, &sk2);
+        let opened = open(&c, &n, &pk2, &sk1);
         assert!(Some(m) == opened);
     }
 }
@@ -311,8 +312,8 @@ fn test_seal_open_precomputed() {
         assert!(k1buf == k2buf);
         let m = randombytes(i);
         let n = gen_nonce();
-        let c = seal_precomputed(m.as_slice(), &n, &k1);
-        let opened = open_precomputed(c.as_slice(), &n, &k2);
+        let c = seal_precomputed(&m, &n, &k1);
+        let opened = open_precomputed(&c, &n, &k2);
         assert!(Some(m) == opened);
     }
 }
@@ -325,7 +326,7 @@ fn test_seal_open_tamper() {
         let (pk2, sk2) = gen_keypair();
         let m = randombytes(i);
         let n = gen_nonce();
-        let mut cv = seal(m.as_slice(), &n, &pk1, &sk2);
+        let mut cv = seal(&m, &n, &pk1, &sk2);
         let c = cv.as_mut_slice();
         for j in (0..c.len()) {
             c[j] ^= 0x20;
@@ -345,7 +346,7 @@ fn test_seal_open_precomputed_tamper() {
         let k2 = precompute(&pk2, &sk1);
         let m = randombytes(i);
         let n = gen_nonce();
-        let mut cv = seal_precomputed(m.as_slice(), &n, &k1);
+        let mut cv = seal_precomputed(&m, &n, &k1);
         let c = cv.as_mut_slice();
         for j in (0..c.len()) {
             c[j] ^= 0x20;
@@ -487,7 +488,7 @@ mod bench {
         }).collect();
         b.iter(|| {
             for m in ms.iter() {
-                open(seal(m.as_slice(), &n, &pk, &sk).as_slice(), &n, &pk, &sk).unwrap();
+                open(&seal(m, &n, &pk, &sk), &n, &pk, &sk).unwrap();
             }
         });
     }

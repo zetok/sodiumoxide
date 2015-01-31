@@ -6,10 +6,11 @@ This function is conjectured to be strong. For background see Bernstein,
 Science 3958 (2006), 207–228, http://cr.yp.to/papers.html#curve25519.
 */
 
+use std::ops::{Index, Range, RangeFrom, RangeFull, RangeTo};
 use ffi;
 
-pub const BYTES: usize = ffi::crypto_scalarmult_curve25519_BYTES as usize;
-pub const SCALARBYTES: usize = ffi::crypto_scalarmult_curve25519_SCALARBYTES as usize;
+pub const BYTES: usize = ffi::crypto_scalarmult_curve25519_BYTES;
+pub const SCALARBYTES: usize = ffi::crypto_scalarmult_curve25519_SCALARBYTES;
 
 /**
  * `Scalar` value (integer in byte representation)
@@ -34,11 +35,11 @@ newtype_impl!(GroupElement, BYTES);
  * by an integer `n`. It returns the resulting group element
  * `q`.
  */
-pub fn scalarmult(&Scalar(n): &Scalar,
-                  &GroupElement(p): &GroupElement) -> GroupElement {
+pub fn scalarmult(&Scalar(ref n): &Scalar,
+                  &GroupElement(ref p): &GroupElement) -> GroupElement {
     let mut q = [0; BYTES];
     unsafe {
-        ffi::crypto_scalarmult_curve25519(q.as_mut_ptr(), n.as_ptr(), p.as_ptr());
+        ffi::crypto_scalarmult_curve25519(&mut q, n, p);
     }
     GroupElement(q)
 }
@@ -48,10 +49,10 @@ pub fn scalarmult(&Scalar(n): &Scalar,
  * group element and an integer `n`. It returns the resulting
  * group element `q`/
  */
-pub fn scalarmult_base(&Scalar(n): &Scalar) -> GroupElement {
+pub fn scalarmult_base(&Scalar(ref n): &Scalar) -> GroupElement {
     let mut q = [0; BYTES];
     unsafe {
-        ffi::crypto_scalarmult_curve25519_base(q.as_mut_ptr(), n.as_ptr());
+        ffi::crypto_scalarmult_curve25519_base(&mut q, n);
     }
     GroupElement(q)
 }
