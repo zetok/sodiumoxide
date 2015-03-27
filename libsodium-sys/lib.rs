@@ -1,15 +1,10 @@
 #![allow(non_upper_case_globals)]
-#![feature(std_misc)]
-/* workaround: the rust compiler doesn't recognize
-   the feature std_misc yet, still it warns
-   about using it */
-#![allow(unused_features)]
-#![feature(std_misc)]
 
 extern crate libc;
 use libc::{c_int, c_ulonglong, c_char, size_t};
 
 include!("src/core.rs");
+
 include!("src/crypto_aead_chacha20poly1305.rs");
 
 include!("src/crypto_auth.rs");
@@ -17,6 +12,7 @@ include!("src/crypto_auth_hmacsha256.rs");
 include!("src/crypto_auth_hmacsha512.rs");
 include!("src/crypto_auth_hmacsha512256.rs");
 
+include!("src/crypto_box.rs");
 include!("src/crypto_box_curve25519xsalsa20poly1305.rs");
 
 include!("src/crypto_hash.rs");
