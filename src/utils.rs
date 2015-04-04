@@ -5,14 +5,14 @@ pub fn marshal<F>(m: &[u8],
                   ) -> Option<Vec<u8>>
 where F: Fn(&mut [u8]) -> Option<&[u8]> {
     let mut buf = Vec::with_capacity(padding.len() + m.len());
-    buf.push_all(padding);
-    buf.push_all(m);
+    buf.extend(padding.iter().cloned());
+    buf.extend(m.iter().cloned());
     let c = match f(&mut buf) {
         None => return None,
         Some(c) => c
     };
     let mut dst = Vec::with_capacity(c.len());
-    dst.push_all(c);
+    dst.extend(c.iter().cloned());
     Some(dst)
 }
 
@@ -29,9 +29,11 @@ macro_rules! newtype_clone (($newtype:ident) => (
 macro_rules! newtype_drop (($newtype:ident) => (
         impl Drop for $newtype {
             fn drop(&mut self) {
+                use libc::size_t;
+                use ffi;
                 let &mut $newtype(ref mut v) = self;
                 unsafe {
-                    volatile_set_memory(v.as_mut_ptr(), 0, v.len());
+                    ffi::sodium_memzero(v.as_mut_ptr(), v.len() as size_t);
                 }
             }
         }

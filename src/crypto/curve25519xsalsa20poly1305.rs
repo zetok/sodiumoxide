@@ -9,7 +9,6 @@ third-party unforgeability.
 */
 use ffi;
 use libc::c_ulonglong;
-use std::intrinsics::volatile_set_memory;
 use std::ops::{Index, Range, RangeFrom, RangeFull, RangeTo};
 use utils::marshal;
 use randombytes::randombytes_into;
@@ -486,6 +485,7 @@ fn test_vector_2() {
     assert!(m_pre == mexp);
 }
 
+#[cfg(feature="benchmarks")]
 #[cfg(test)]
 mod bench {
     extern crate test;
