@@ -101,7 +101,7 @@ pub fn seal(m: &[u8],
             pk: &PublicKey,
             sk: &SecretKey) -> Vec<u8> {
     marshal(m, &ZERO, |b| {
-        seal_inplace(b.as_mut_slice(), n, pk, sk)
+        seal_inplace(b, n, pk, sk)
     }).unwrap()
 }
 
@@ -144,7 +144,7 @@ pub fn open(c: &[u8],
             pk: &PublicKey,
             sk: &SecretKey) -> Option<Vec<u8>> {
     marshal(c, &BOXZERO, |b| {
-        open_inplace(b.as_mut_slice(), n, pk, sk)
+        open_inplace(b, n, pk, sk)
     })
 }
 
@@ -224,7 +224,7 @@ pub fn seal_precomputed(m: &[u8],
                         n: &Nonce,
                         k: &PrecomputedKey) -> Vec<u8> {
     marshal(m, &ZERO, |b| {
-        seal_precomputed_inplace(b.as_mut_slice(), n, k)
+        seal_precomputed_inplace(b, n, k)
     }).unwrap()
 }
 
@@ -265,7 +265,7 @@ pub fn open_precomputed(c: &[u8],
                         n: &Nonce,
                         k: &PrecomputedKey) -> Option<Vec<u8>> {
     marshal(c, &BOXZERO, |b| {
-        open_precomputed_inplace(b.as_mut_slice(), n, k)
+        open_precomputed_inplace(b, n, k)
     })
 }
 
@@ -534,8 +534,8 @@ mod bench {
         }).collect();
         b.iter(|| {
             for m in ms.iter_mut() {
-                seal_inplace(m.as_mut_slice(), &n, &pk, &sk).unwrap();
-                open_inplace(m.as_mut_slice(), &n, &pk, &sk).unwrap();
+                seal_inplace(m, &n, &pk, &sk).unwrap();
+                open_inplace(m, &n, &pk, &sk).unwrap();
             }
         });
     }

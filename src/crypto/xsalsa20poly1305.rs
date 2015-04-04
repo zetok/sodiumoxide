@@ -77,7 +77,7 @@ pub fn seal(m: &[u8],
             n: &Nonce,
             k: &Key) -> Vec<u8> {
     marshal(m, &ZERO, |b| {
-        seal_inplace(b.as_mut_slice(), n, k)
+        seal_inplace(b, n, k)
     }).unwrap()
 }
 
@@ -118,7 +118,7 @@ pub fn open(c: &[u8],
             n: &Nonce,
             k: &Key) -> Option<Vec<u8>> {
     marshal(c, &BOXZERO, |b| {
-        open_inplace(b.as_mut_slice(), n, k)
+        open_inplace(b, n, k)
     })
 }
 
@@ -271,8 +271,8 @@ mod bench {
         }).collect();
         b.iter(|| {
             for m in ms.iter_mut() {
-                seal_inplace(m.as_mut_slice(), &n, &k).unwrap();
-                open_inplace(m.as_mut_slice(), &n, &k).unwrap();
+                seal_inplace(m, &n, &k).unwrap();
+                open_inplace(m, &n, &k).unwrap();
             }
         });
     }

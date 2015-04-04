@@ -7,7 +7,7 @@ where F: Fn(&mut [u8]) -> Option<&[u8]> {
     let mut buf = Vec::with_capacity(padding.len() + m.len());
     buf.push_all(padding);
     buf.push_all(m);
-    let c = match f(buf.as_mut_slice()) {
+    let c = match f(&mut buf) {
         None => return None,
         Some(c) => c
     };
