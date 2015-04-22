@@ -7,7 +7,7 @@
 use ffi;
 use libc::c_ulonglong;
 use std::ops::{Index, Range, RangeFrom, RangeFull, RangeTo};
-use utils::marshal;
+use marshal::marshal;
 use randombytes::randombytes_into;
 
 pub const KEYBYTES: usize = ffi::crypto_secretbox_xsalsa20poly1305_KEYBYTES;
