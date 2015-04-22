@@ -41,15 +41,13 @@ macro_rules! newtype_drop (($newtype:ident) => (
 
 macro_rules! newtype_impl (($newtype:ident, $len:expr) => (
     impl $newtype {
-        /**
-         * `from_slice()` creates an object from a byte slice
-         *
-         * This function will fail and return None if the length of
-         * the byte-slice isn't equal to the length of the object
-         */
+        /// `from_slice()` creates an object from a byte slice
+        ///
+        /// This function will fail and return None if the length of
+        /// the byte-slice isn't equal to the length of the object
         pub fn from_slice(bs: &[u8]) -> Option<$newtype> {
             if bs.len() != $len {
-                return None
+                return None;
             }
             let mut n = $newtype([0; $len]);
             {
@@ -61,14 +59,12 @@ macro_rules! newtype_impl (($newtype:ident, $len:expr) => (
             Some(n)
         }
     }
-    /**
-     * Allows a user to access the byte contents of an object as a slice.
-     *
-     * WARNING: it might be tempting to do comparisons on objects
-     * by using `x[a..b] == y[a..b]`. This will open up for timing attacks
-     * when comparing for example authenticator tags. Because of this only
-     * use the comparison functions exposed by the sodiumoxide API.
-     */
+    /// Allows a user to access the byte contents of an object as a slice.
+    ///
+    /// WARNING: it might be tempting to do comparisons on objects
+    /// by using `x[a..b] == y[a..b]`. This will open up for timing attacks
+    /// when comparing for example authenticator tags. Because of this only
+    /// use the comparison functions exposed by the sodiumoxide API.
     impl Index<Range<usize>> for $newtype {
         type Output = [u8];
         fn index(&self, _index: Range<usize>) -> &[u8] {
@@ -76,14 +72,12 @@ macro_rules! newtype_impl (($newtype:ident, $len:expr) => (
             b.index(_index)
         }
     }
-    /**
-     * Allows a user to access the byte contents of an object as a slice.
-     *
-     * WARNING: it might be tempting to do comparisons on objects
-     * by using `x[..b] == y[..b]`. This will open up for timing attacks
-     * when comparing for example authenticator tags. Because of this only
-     * use the comparison functions exposed by the sodiumoxide API.
-     */
+    /// Allows a user to access the byte contents of an object as a slice.
+    ///
+    /// WARNING: it might be tempting to do comparisons on objects
+    /// by using `x[..b] == y[..b]`. This will open up for timing attacks
+    /// when comparing for example authenticator tags. Because of this only
+    /// use the comparison functions exposed by the sodiumoxide API.
     impl Index<RangeTo<usize>> for $newtype {
         type Output = [u8];
         fn index(&self, _index: RangeTo<usize>) -> &[u8] {
@@ -91,14 +85,12 @@ macro_rules! newtype_impl (($newtype:ident, $len:expr) => (
             b.index(_index)
         }
     }
-    /**
-     * Allows a user to access the byte contents of an object as a slice.
-     *
-     * WARNING: it might be tempting to do comparisons on objects
-     * by using `x[a..] == y[a..]`. This will open up for timing attacks
-     * when comparing for example authenticator tags. Because of this only
-     * use the comparison functions exposed by the sodiumoxide API.
-     */
+    /// Allows a user to access the byte contents of an object as a slice.
+    ///
+    /// WARNING: it might be tempting to do comparisons on objects
+    /// by using `x[a..] == y[a..]`. This will open up for timing attacks
+    /// when comparing for example authenticator tags. Because of this only
+    /// use the comparison functions exposed by the sodiumoxide API.
     impl Index<RangeFrom<usize>> for $newtype {
         type Output = [u8];
         fn index(&self, _index: RangeFrom<usize>) -> &[u8] {
@@ -106,14 +98,12 @@ macro_rules! newtype_impl (($newtype:ident, $len:expr) => (
             b.index(_index)
         }
     }
-    /**
-     * Allows a user to access the byte contents of an object as a slice.
-     *
-     * WARNING: it might be tempting to do comparisons on objects
-     * by using `x[] == y[]`. This will open up for timing attacks
-     * when comparing for example authenticator tags. Because of this only
-     * use the comparison functions exposed by the sodiumoxide API.
-     */
+    /// Allows a user to access the byte contents of an object as a slice.
+    ///
+    /// WARNING: it might be tempting to do comparisons on objects
+    /// by using `x[] == y[]`. This will open up for timing attacks
+    /// when comparing for example authenticator tags. Because of this only
+    /// use the comparison functions exposed by the sodiumoxide API.
     impl Index<RangeFull> for $newtype {
         type Output = [u8];
         fn index(&self, _index: RangeFull) -> &[u8] {

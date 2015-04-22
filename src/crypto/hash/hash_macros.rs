@@ -6,18 +6,14 @@ use libc::c_ulonglong;
 pub const HASHBYTES: usize = $hashbytes;
 pub const BLOCKBYTES: usize = $blockbytes;
 
-/**
- * Digest-structure
- */
+/// Digest-structure
 #[derive(Copy)]
 pub struct Digest(pub [u8; HASHBYTES]);
 
 newtype_clone!(Digest);
 newtype_impl!(Digest, HASHBYTES);
 
-/**
- * `hash` hashes a message `m`. It returns a hash `h`.
- */
+/// `hash` hashes a message `m`. It returns a hash `h`.
 pub fn hash(m: &[u8]) -> Digest {
     unsafe {
         let mut h = [0; HASHBYTES];
@@ -26,9 +22,9 @@ pub fn hash(m: &[u8]) -> Digest {
     }
 }
 
-#[cfg(feature="benchmarks")]
+#[cfg(feature = "benchmarks")]
 #[cfg(test)]
-mod bench {
+mod bench_m {
     extern crate test;
     use randombytes::randombytes;
     use super::*;
