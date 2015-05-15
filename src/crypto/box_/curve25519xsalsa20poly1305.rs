@@ -26,7 +26,7 @@ pub const ZERO: [u8; ZEROBYTES] = [0; ZEROBYTES];
 pub const BOXZERO: [u8; BOXZEROBYTES] = [0; BOXZEROBYTES];
 
 /// `PublicKey` for asymmetric authenticated encryption
-#[derive(Copy)]
+#[derive(Copy, Eq, PartialEq)]
 pub struct PublicKey(pub [u8; PUBLICKEYBYTES]);
 
 newtype_clone!(PublicKey);
