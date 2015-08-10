@@ -5,13 +5,11 @@
 use ffi;
 use libc::c_ulonglong;
 use std::iter::repeat;
-use std::ops::{Index, Range, RangeFrom, RangeFull, RangeTo};
-
+use rustc_serialize;
 pub const SEEDBYTES: usize = ffi::crypto_sign_ed25519_SEEDBYTES;
 pub const SECRETKEYBYTES: usize = ffi::crypto_sign_ed25519_SECRETKEYBYTES;
 pub const PUBLICKEYBYTES: usize = ffi::crypto_sign_ed25519_PUBLICKEYBYTES;
 pub const SIGNATUREBYTES: usize = ffi::crypto_sign_ed25519_BYTES;
-
 
 /// `Seed` that can be used for keypair generation
 ///
@@ -37,11 +35,12 @@ newtype_clone!(SecretKey);
 newtype_impl!(SecretKey, SECRETKEYBYTES);
 
 /// `PublicKey` for signatures
-#[derive(Copy, Eq, PartialEq)]
+#[derive(Copy)]
 pub struct PublicKey(pub [u8; PUBLICKEYBYTES]);
 
 newtype_clone!(PublicKey);
 newtype_impl!(PublicKey, PUBLICKEYBYTES);
+non_secret_newtype_impl!(PublicKey);
 
 /// Detached signature
 #[derive(Copy)]
@@ -49,6 +48,7 @@ pub struct Signature(pub [u8; SIGNATUREBYTES]);
 
 newtype_clone!(Signature);
 newtype_impl!(Signature, SIGNATUREBYTES);
+non_secret_newtype_impl!(Signature);
 
 /// `gen_keypair()` randomly generates a secret key and a corresponding public
 /// key.
@@ -96,10 +96,10 @@ pub fn sign(m: &[u8],
 }
 
 /// `verify()` verifies the signature in `sm` using the signer's public key `pk`.
-/// `verify()` returns the message `Some(m)`.
-/// If the signature fails verification, `verify()` returns `None`.
+/// `verify()` returns the message `Ok(m)`.
+/// If the signature fails verification, `verify()` returns `Err(())`.
 pub fn verify(sm: &[u8],
-              &PublicKey(ref pk): &PublicKey) -> Option<Vec<u8>> {
+              &PublicKey(ref pk): &PublicKey) -> Result<Vec<u8>, ()> {
     unsafe {
         let mut m: Vec<u8> = repeat(0u8).take(sm.len()).collect();
         let mut mlen = 0;
@@ -109,9 +109,9 @@ pub fn verify(sm: &[u8],
                                          sm.len() as c_ulonglong,
                                          pk) == 0 {
             m.truncate(mlen as usize);
-            Some(m)
+            Ok(m)
         } else {
-            None
+            Err(())
         }
     }
 }
@@ -136,11 +136,11 @@ pub fn sign_detached(m: &[u8],
 /// `verify_detached()` verifies the signature in `sig` against the message `m`
 /// and the signer's public key `pk`.
 /// `verify_detached()` returns true if the signature is valid, false otherwise.
-pub fn verify_detached(&Signature(sig): &Signature,
+pub fn verify_detached(&Signature(ref sig): &Signature,
                        m: &[u8],
                        &PublicKey(ref pk): &PublicKey) -> bool {
     unsafe {
-        0 == ffi::crypto_sign_ed25519_verify_detached(sig.as_ptr(),
+        0 == ffi::crypto_sign_ed25519_verify_detached(sig,
                                                       m.as_ptr(),
                                                       m.len() as c_ulonglong,
                                                       pk)
@@ -149,8 +149,8 @@ pub fn verify_detached(&Signature(sig): &Signature,
 
 #[cfg(test)]
 mod test {
-    extern crate rustc_serialize;
     use super::*;
+    use test_utils::round_trip;
 
     #[test]
     fn test_sign_verify() {
@@ -160,7 +160,7 @@ mod test {
             let m = randombytes(i);
             let sm = sign(&m, &sk);
             let m2 = verify(&sm, &pk);
-            assert!(Some(m) == m2);
+            assert!(Ok(m) == m2);
         }
     }
 
@@ -173,7 +173,7 @@ mod test {
             let mut sm = sign(&m, &sk);
             for j in (0..sm.len()) {
                 sm[j] ^= 0x20;
-                assert!(None == verify(&mut sm, &pk));
+                assert!(Err(()) == verify(&mut sm, &pk));
                 sm[j] ^= 0x20;
             }
         }
@@ -216,7 +216,7 @@ mod test {
             let m = randombytes(i);
             let sm = sign(&m, &sk);
             let m2 = verify(&sm, &pk);
-            assert!(Some(m) == m2);
+            assert!(Ok(m) == m2);
         }
     }
 
@@ -232,7 +232,7 @@ mod test {
             let mut sm = sign(&m, &sk);
             for j in (0..sm.len()) {
                 sm[j] ^= 0x20;
-                assert!(None == verify(&mut sm, &pk));
+                assert!(Err(()) == verify(&mut sm, &pk));
                 sm[j] ^= 0x20;
             }
         }
@@ -242,7 +242,7 @@ mod test {
     fn test_vectors() {
         // test vectors from the Python implementation
         // from the [Ed25519 Homepage](http://ed25519.cr.yp.to/software.html)
-        use self::rustc_serialize::hex::{FromHex, ToHex};
+        use rustc_serialize::hex::{FromHex, ToHex};
         use std::fs::File;
         use std::io::{BufRead, BufReader};
 
@@ -274,7 +274,7 @@ mod test {
     fn test_vectors_detached() {
         // test vectors from the Python implementation
         // from the [Ed25519 Homepage](http://ed25519.cr.yp.to/software.html)
-        use self::rustc_serialize::hex::{FromHex, ToHex};
+        use rustc_serialize::hex::{FromHex, ToHex};
         use std::fs::File;
         use std::io::{BufRead, BufReader};
 
@@ -300,6 +300,19 @@ mod test {
             assert!(x1 == pk[..].to_hex());
             let sm = sig[..].to_hex() + x2; // x2 is m hex encoded
             assert!(x3 == sm);
+        }
+    }
+
+    #[test]
+    fn test_serialisation() {
+        use randombytes::randombytes;
+        for i in (0..256usize) {
+            let (pk, sk) = gen_keypair();
+            let m = randombytes(i);
+            let sig = sign_detached(&m, &sk);
+            round_trip(pk);
+            round_trip(sk);
+            round_trip(sig);
         }
     }
 }

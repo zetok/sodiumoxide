@@ -3,16 +3,16 @@
 //! This function is conjectured to be strong. For background see Bernstein,
 //! "Curve25519: new Diffie-Hellman speed records," Lecture Notes in Computer
 //! Science 3958 (2006), 207–228, http://cr.yp.to/papers.html#curve25519.
-use std::ops::{Index, Range, RangeFrom, RangeFull, RangeTo};
 use ffi;
 
 pub const BYTES: usize = ffi::crypto_scalarmult_curve25519_BYTES;
 pub const SCALARBYTES: usize = ffi::crypto_scalarmult_curve25519_SCALARBYTES;
+use rustc_serialize;
 
 /// `Scalar` value (integer in byte representation)
-#[derive(Copy)]
 pub struct Scalar(pub [u8; SCALARBYTES]);
 
+newtype_drop!(Scalar);
 newtype_clone!(Scalar);
 newtype_impl!(Scalar, SCALARBYTES);
 

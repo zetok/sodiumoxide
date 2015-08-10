@@ -4,11 +4,11 @@
 //!
 //! This function is conjectured to meet the standard notions of privacy and
 //! authenticity.
-use ffi;
 use libc::c_ulonglong;
-use std::ops::{Index, Range, RangeFrom, RangeFull, RangeTo};
+use ffi;
 use marshal::marshal;
 use randombytes::randombytes_into;
+use rustc_serialize;
 
 pub const KEYBYTES: usize = ffi::crypto_secretbox_xsalsa20poly1305_KEYBYTES;
 pub const NONCEBYTES: usize =
@@ -69,18 +69,18 @@ pub fn seal(m: &[u8],
 }
 
 /// `seal_inplace()` encrypts and authenticates a message `m` using a
-/// secret key `k` and a nonce `n`.  It returns a ciphertext `c`.
+/// secret key `k` and a nonce `n`.  It returns a ciphertext `Ok(c)`.
 ///
 /// `seal_inplace()` requires that the first `ZERO.len()` bytes of the
-/// message are equal to 0, otherwise it returns `None`.
+/// message are equal to 0, otherwise it returns `Err(())`.
 /// `seal_inplace()` will modify the message in place, but returns a
 /// slice pointing to the start of the actual ciphertext (minus
 /// padding).
 pub fn seal_inplace<'a>(m: &'a mut [u8],
                         &Nonce(ref n): &Nonce,
-                        &Key(ref k): &Key) -> Option<&'a [u8]> {
+                        &Key(ref k): &Key) -> Result<&'a [u8], ()> {
     if m.len() < ZERO.len() || &m[..ZERO.len()] != ZERO {
-        return None;
+        return Err(());
     }
 
     unsafe {
@@ -90,15 +90,15 @@ pub fn seal_inplace<'a>(m: &'a mut [u8],
                                                n,
                                                k);
     }
-    Some(&m[BOXZERO.len()..])
+    Ok(&m[BOXZERO.len()..])
 }
 
 /// `open()` verifies and decrypts a ciphertext `c` using a secret key `k` and a nonce `n`.
-/// It returns a plaintext `Some(m)`.
-/// If the ciphertext fails verification, `open()` returns `None`.
+/// It returns a plaintext `Ok(m)`.
+/// If the ciphertext fails verification, `open()` returns `Err(())`.
 pub fn open(c: &[u8],
             n: &Nonce,
-            k: &Key) -> Option<Vec<u8>> {
+            k: &Key) -> Result<Vec<u8>, ()> {
     marshal(c, &BOXZERO, |b| {
         open_inplace(b, n, k)
     })
@@ -106,18 +106,18 @@ pub fn open(c: &[u8],
 
 /// `open_inplace()` verifies and decrypts a ciphertext `c` using a
 /// secret key `k` and a nonce `n`.
-/// It returns a plaintext `Some(m)`.  If the * ciphertext fails
-/// verification, `open_inplace()` returns `None`.
+/// It returns a plaintext `Ok(m)`.  If the * ciphertext fails
+/// verification, `open_inplace()` returns `Err(())`.
 ///
 /// `open_inplace()` requires that the first `BOXZERO.len()` bytes
-/// of the ciphertext are equal to 0, otherwise it returns `None`.
+/// of the ciphertext are equal to 0, otherwise it returns `Err(())`.
 /// `open_inplace()` will modify the ciphertext in place, but returns a slice
 /// pointing to the start of the actual plaintext (minus padding).
 pub fn open_inplace<'a>(c: &'a mut [u8],
                         &Nonce(ref n): &Nonce,
-                        &Key(ref k): &Key) -> Option<&'a [u8]> {
+                        &Key(ref k): &Key) -> Result<&'a [u8], ()> {
     if c.len() < BOXZERO.len() || &c[..BOXZERO.len()] != BOXZERO {
-        return None;
+        return Err(());
     }
 
     unsafe {
@@ -128,9 +128,9 @@ pub fn open_inplace<'a>(c: &'a mut [u8],
             n,
             k);
         if ret == 0 {
-            Some(&c[ZERO.len()..])
+            Ok(&c[ZERO.len()..])
         } else {
-            None
+            Err(())
         }
     }
 }
@@ -138,6 +138,7 @@ pub fn open_inplace<'a>(c: &'a mut [u8],
 #[cfg(test)]
 mod test {
     use super::*;
+    use test_utils::round_trip;
 
     #[test]
     fn test_seal_open() {
@@ -148,7 +149,7 @@ mod test {
             let n = gen_nonce();
             let c = seal(&m, &n, &k);
             let opened = open(&c, &n, &k);
-            assert!(Some(m) == opened);
+            assert!(Ok(m) == opened);
         }
     }
 
@@ -162,7 +163,7 @@ mod test {
             let mut c = seal(&m, &n, &k);
             for i in (0..c.len()) {
                 c[i] ^= 0x20;
-                assert!(None == open(&mut c, &n, &k));
+                assert!(Err(()) == open(&mut c, &n, &k));
                 c[i] ^= 0x20;
             }
         }
@@ -217,7 +218,17 @@ mod test {
         let c = seal(&m, &nonce, &firstkey);
         assert!(c == c_expected);
         let m2 = open(&c, &nonce, &firstkey);
-        assert!(Some(m) == m2);
+        assert!(Ok(m) == m2);
+    }
+
+    #[test]
+    fn test_serialisation() {
+        for _ in (0..256usize) {
+            let k = gen_key();
+            let n = gen_nonce();
+            round_trip(k);
+            round_trip(n);
+        }
     }
 }
 

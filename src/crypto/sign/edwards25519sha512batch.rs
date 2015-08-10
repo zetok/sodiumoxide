@@ -3,7 +3,7 @@
 use ffi;
 use libc::c_ulonglong;
 use std::iter::repeat;
-use std::ops::{Index, Range, RangeFrom, RangeFull, RangeTo};
+use rustc_serialize;
 
 pub const SECRETKEYBYTES: usize = ffi::crypto_sign_edwards25519sha512batch_SECRETKEYBYTES;
 pub const PUBLICKEYBYTES: usize = ffi::crypto_sign_edwards25519sha512batch_PUBLICKEYBYTES;
@@ -20,11 +20,12 @@ newtype_clone!(SecretKey);
 newtype_impl!(SecretKey, SECRETKEYBYTES);
 
 /// `PublicKey` for signatures
-#[derive(Copy, Eq, PartialEq)]
+#[derive(Copy)]
 pub struct PublicKey(pub [u8; PUBLICKEYBYTES]);
 
 newtype_clone!(PublicKey);
 newtype_impl!(PublicKey, PUBLICKEYBYTES);
+non_secret_newtype_impl!(PublicKey);
 
 /// `gen_keypair()` randomly generates a secret key and a corresponding public
 /// key.
@@ -60,10 +61,10 @@ pub fn sign(m: &[u8],
 }
 
 /// `verify()` verifies the signature in `sm` using the signer's public key `pk`.
-/// `verify()` returns the message `Some(m)`.
-/// If the signature fails verification, `verify()` returns `None`.
+/// `verify()` returns the message `Ok(m)`.
+/// If the signature fails verification, `verify()` returns `Err(())`.
 pub fn verify(sm: &[u8],
-              &PublicKey(ref pk): &PublicKey) -> Option<Vec<u8>> {
+              &PublicKey(ref pk): &PublicKey) -> Result<Vec<u8>, ()> {
     unsafe {
         let mut m: Vec<u8> = repeat(0u8).take(sm.len()).collect();
         let mut mlen = 0;
@@ -73,9 +74,9 @@ pub fn verify(sm: &[u8],
                                                          sm.len() as c_ulonglong,
                                                          pk) == 0 {
             m.truncate(mlen as usize);
-            Some(m)
+            Ok(m)
         } else {
-            None
+            Err(())
         }
     }
 }
@@ -92,7 +93,7 @@ mod test {
             let m = randombytes(i);
             let sm = sign(&m, &sk);
             let m2 = verify(&sm, &pk);
-            assert!(Some(m) == m2);
+            assert!(Ok(m) == m2);
         }
     }
 
@@ -105,7 +106,7 @@ mod test {
             let mut sm = sign(&m, &sk);
             for j in (0..sm.len()) {
                 sm[j] ^= 0x20;
-                assert!(None == verify(&mut sm, &pk));
+                assert!(Err(()) == verify(&mut sm, &pk));
                 sm[j] ^= 0x20;
             }
         }

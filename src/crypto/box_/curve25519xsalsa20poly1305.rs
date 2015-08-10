@@ -4,11 +4,11 @@
 //!
 //! This function is conjectured to meet the standard notions of privacy and
 //! third-party unforgeability.
-use ffi;
 use libc::c_ulonglong;
-use std::ops::{Index, Range, RangeFrom, RangeFull, RangeTo};
+use ffi;
 use marshal::marshal;
 use randombytes::randombytes_into;
+use rustc_serialize;
 
 pub const PUBLICKEYBYTES: usize =
     ffi::crypto_box_curve25519xsalsa20poly1305_PUBLICKEYBYTES;
@@ -26,11 +26,12 @@ pub const ZERO: [u8; ZEROBYTES] = [0; ZEROBYTES];
 pub const BOXZERO: [u8; BOXZEROBYTES] = [0; BOXZEROBYTES];
 
 /// `PublicKey` for asymmetric authenticated encryption
-#[derive(Copy, Eq, PartialEq)]
+#[derive(Copy)]
 pub struct PublicKey(pub [u8; PUBLICKEYBYTES]);
 
 newtype_clone!(PublicKey);
 newtype_impl!(PublicKey, PUBLICKEYBYTES);
+non_secret_newtype_impl!(PublicKey);
 
 /// `SecretKey` for asymmetric authenticated encryption
 ///
@@ -89,18 +90,18 @@ pub fn seal(m: &[u8],
 
 /// `seal_inplace()` encrypts and authenticates a message `m` using the
 /// senders secret key `sk`, the receivers public key `pk` and a nonce `n`.
-/// It returns a ciphertext `Some(c)`.
+/// It returns a ciphertext `Ok(c)`.
 ///
 /// `seal_inplace()` requires that the first `ZERO.len()` bytes of the message
-/// are equal to 0, otherwise it returns `None`.
-// `seal_inplace()` will encrypt the message in place, but returns a slice
-// pointing to the the actual ciphertext (minus padding).
+/// are equal to 0, otherwise it returns `Err(())`.
+/// `seal_inplace()` will encrypt the message in place, but returns a slice
+/// pointing to the the actual ciphertext (minus padding).
 pub fn seal_inplace<'a>(m: &'a mut [u8],
                         &Nonce(ref n): &Nonce,
                         &PublicKey(ref pk): &PublicKey,
-                        &SecretKey(ref sk): &SecretKey) -> Option<&'a [u8]> {
+                        &SecretKey(ref sk): &SecretKey) -> Result<&'a [u8], ()> {
     if m.len() < ZERO.len() || &m[..ZERO.len()] != ZERO {
-        return None;
+        return Err(());
     }
     unsafe {
         ffi::crypto_box_curve25519xsalsa20poly1305(m.as_mut_ptr(),
@@ -110,16 +111,16 @@ pub fn seal_inplace<'a>(m: &'a mut [u8],
                                                    pk,
                                                    sk);
     }
-    Some(&m[BOXZERO.len()..])
+    Ok(&m[BOXZERO.len()..])
 }
 
 /// `open()` verifies and decrypts a ciphertext `c` using the receiver's secret key `sk`,
-/// the senders public key `pk`, and a nonce `n`. It returns a plaintext `Some(m)`.
-/// If the ciphertext fails verification, `open()` returns `None`.
+/// the senders public key `pk`, and a nonce `n`. It returns a plaintext `Ok(m)`.
+/// If the ciphertext fails verification, `open()` returns `Err(())`.
 pub fn open(c: &[u8],
             n: &Nonce,
             pk: &PublicKey,
-            sk: &SecretKey) -> Option<Vec<u8>> {
+            sk: &SecretKey) -> Result<Vec<u8>, ()> {
     marshal(c, &BOXZERO, |b| {
         open_inplace(b, n, pk, sk)
     })
@@ -127,20 +128,20 @@ pub fn open(c: &[u8],
 
 /// `open_inplace()` verifies and decrypts a ciphertext `c` using the
 /// receiver's secret key `sk`, the senders public key `pk`, and a
-/// nonce `n`. It returns a plaintext `Some(m)`.  If the ciphertext
-/// fails verification, `open_inplace()` returns `None`.
+/// nonce `n`. It returns a plaintext `Ok(m)`.  If the ciphertext
+/// fails verification, `open_inplace()` returns `Err(())`.
 ///
 /// `open_inplace()` requires that the first `BOXZERO.len()` bytes of
-/// the ciphertext are equal to 0, otherwise it returns `None`.
+/// the ciphertext are equal to 0, otherwise it returns `Err(())`.
 /// `open_inplace()` will modify the ciphertext in place, but returns a
 /// slice pointing to the start of the actual plaintext (minus
 /// padding).
 pub fn open_inplace<'a>(c: &'a mut [u8],
                         &Nonce(ref n): &Nonce,
                         &PublicKey(ref pk): &PublicKey,
-                        &SecretKey(ref sk): &SecretKey) -> Option<&'a [u8]> {
+                        &SecretKey(ref sk): &SecretKey) -> Result<&'a [u8], ()> {
     if c.len() < BOXZERO.len() || &c[..BOXZERO.len()] != BOXZERO {
-        return None;
+        return Err(());
     }
     unsafe {
         let ret = ffi::crypto_box_curve25519xsalsa20poly1305_open(
@@ -151,9 +152,9 @@ pub fn open_inplace<'a>(c: &'a mut [u8],
             pk,
             sk);
         if ret == 0 {
-            Some(&c[ZERO.len()..])
+            Ok(&c[ZERO.len()..])
         } else {
-            None
+            Err(())
         }
     }
 }
@@ -195,18 +196,18 @@ pub fn seal_precomputed(m: &[u8],
 
 /// `seal_precomputed_inplace()` encrypts and authenticates a message `m`
 /// using a precomputed key `k`, and a nonce `n`.
-/// It returns a ciphertext `c`.
+/// It returns a ciphertext `Ok(c)`.
 ///
 /// `seal_precomputed_inplace()` requires that the first `ZERO.len()`
-/// bytes of the message are equal to 0, otherwise it returns `None`.
+/// bytes of the message are equal to 0, otherwise it returns `Err(())`.
 /// `seal_inplace()` will modify the message in place, but returns a slice
 /// pointing to the start of the actual ciphertext (minus padding).
 pub fn seal_precomputed_inplace<'a>(m: &'a mut [u8],
                                     &Nonce(ref n): &Nonce,
                                     &PrecomputedKey(ref k): &PrecomputedKey
-                                    ) -> Option<&'a [u8]> {
+                                    ) -> Result<&'a [u8], ()> {
     if m.len() < ZERO.len() || &m[..ZERO.len()] != ZERO {
-        return None;
+        return Err(());
     }
     unsafe {
         ffi::crypto_box_curve25519xsalsa20poly1305_afternm(
@@ -216,14 +217,14 @@ pub fn seal_precomputed_inplace<'a>(m: &'a mut [u8],
             n,
             k);
     }
-    Some(&m[BOXZERO.len()..])
+    Ok(&m[BOXZERO.len()..])
 }
 /// `open_precomputed()` verifies and decrypts a ciphertext `c` using a precomputed
-/// key `k` and a nonce `n`. It returns a plaintext `Some(m)`.
-/// If the ciphertext fails verification, `open_precomputed()` returns `None`.
+/// key `k` and a nonce `n`. It returns a plaintext `Ok(m)`.
+/// If the ciphertext fails verification, `open_precomputed()` returns `Err(())`.
 pub fn open_precomputed(c: &[u8],
                         n: &Nonce,
-                        k: &PrecomputedKey) -> Option<Vec<u8>> {
+                        k: &PrecomputedKey) -> Result<Vec<u8>, ()> {
     marshal(c, &BOXZERO, |b| {
         open_precomputed_inplace(b, n, k)
     })
@@ -231,20 +232,20 @@ pub fn open_precomputed(c: &[u8],
 
 /// `open_precomputed_inplace()` verifies and decrypts a ciphertext `c`
 /// using a precomputed key `k` and a nonce `n`.
-/// It returns a plaintext `Some(m)`.
-/// If the ciphertext fails verification, `open_precomputed()` returns `None`.
+/// It returns a plaintext `Ok(m)`.
+/// If the ciphertext fails verification, `open_precomputed()` returns `Err(())`.
 ///
 /// `open_precomputed_inplace()` requires that the first
 /// `BOXZERO.len()` bytes of the ciphertext are equal to 0, otherwise it
-/// returns `None`.  `open_precomputed_inplace()` will modify the
+/// returns `Err(())`.  `open_precomputed_inplace()` will modify the
 /// ciphertext in place, but returns a slice pointing to the start of
 /// the actual plaintext (minus padding).
 pub fn open_precomputed_inplace<'a>(c: &'a mut [u8],
                                     &Nonce(ref n): &Nonce,
                                     &PrecomputedKey(ref k): &PrecomputedKey
-                                    ) -> Option<&'a [u8]> {
+                                    ) -> Result<&'a [u8], ()> {
     if c.len() < BOXZERO.len() || &c[..BOXZERO.len()] != BOXZERO {
-        return None;
+        return Err(());
     }
     unsafe {
         let ret = ffi::crypto_box_curve25519xsalsa20poly1305_open_afternm(
@@ -254,9 +255,9 @@ pub fn open_precomputed_inplace<'a>(c: &'a mut [u8],
             n,
             k);
         if ret == 0 {
-            Some(&c[ZERO.len()..])
+            Ok(&c[ZERO.len()..])
         } else {
-            None
+            Err(())
         }
     }
 }
@@ -264,6 +265,7 @@ pub fn open_precomputed_inplace<'a>(c: &'a mut [u8],
 #[cfg(test)]
 mod test {
     use super::*;
+    use test_utils::round_trip;
 
     #[test]
     fn test_seal_open() {
@@ -275,7 +277,7 @@ mod test {
             let n = gen_nonce();
             let c = seal(&m, &n, &pk1, &sk2);
             let opened = open(&c, &n, &pk2, &sk1);
-            assert!(Some(m) == opened);
+            assert!(Ok(m) == opened);
         }
     }
 
@@ -294,7 +296,7 @@ mod test {
             let n = gen_nonce();
             let c = seal_precomputed(&m, &n, &k1);
             let opened = open_precomputed(&c, &n, &k2);
-            assert!(Some(m) == opened);
+            assert!(Ok(m) == opened);
         }
     }
 
@@ -309,7 +311,7 @@ mod test {
             let mut c = seal(&m, &n, &pk1, &sk2);
             for j in (0..c.len()) {
                 c[j] ^= 0x20;
-                assert!(None == open(&mut c, &n, &pk2, &sk1));
+                assert!(Err(()) == open(&mut c, &n, &pk2, &sk1));
                 c[j] ^= 0x20;
             }
         }
@@ -328,7 +330,7 @@ mod test {
             let mut c = seal_precomputed(&m, &n, &k1);
             for j in (0..c.len()) {
                 c[j] ^= 0x20;
-                assert!(None == open_precomputed(&mut c, &n, &k2));
+                assert!(Err(()) == open_precomputed(&mut c, &n, &k2));
                 c[j] ^= 0x20;
             }
         }
@@ -424,7 +426,7 @@ mod test {
                  0x79,0x73,0xf6,0x22,0xa4,0x3d,0x14,0xa6,
                  0x59,0x9b,0x1f,0x65,0x4c,0xb4,0x5a,0x74,
                  0xe3,0x55,0xa5];
-        let mexp = Some(vec![0xbe,0x07,0x5f,0xc5,0x3c,0x81,0xf2,0xd5,
+        let mexp = Ok(vec![0xbe,0x07,0x5f,0xc5,0x3c,0x81,0xf2,0xd5,
                              0xcf,0x14,0x13,0x16,0xeb,0xeb,0x0c,0x7b,
                              0x52,0x28,0xc5,0x2a,0x4c,0x62,0xcb,0xd4,
                              0x4b,0x66,0x84,0x9b,0x64,0x24,0x4f,0xfc,
@@ -446,6 +448,17 @@ mod test {
         let m_pre = open_precomputed(&c, &nonce, &pk);
         assert!(m == mexp);
         assert!(m_pre == mexp);
+    }
+
+    #[test]
+    fn test_serialisation() {
+        for _ in (0..256usize) {
+            let (pk, sk) = gen_keypair();
+            let n = gen_nonce();
+            round_trip(pk);
+            round_trip(sk);
+            round_trip(n);
+        }
     }
 }
 

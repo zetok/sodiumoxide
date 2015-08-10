@@ -1,8 +1,8 @@
 //! `SipHash-2-4`
 use ffi;
 use libc::c_ulonglong;
-use std::ops::{Index, Range, RangeFrom, RangeFull, RangeTo};
 use randombytes::randombytes_into;
+use rustc_serialize;
 
 pub const HASHBYTES: usize = ffi::crypto_shorthash_siphash24_BYTES;
 pub const KEYBYTES: usize = ffi::crypto_shorthash_siphash24_KEYBYTES;
@@ -13,6 +13,7 @@ pub struct Digest(pub [u8; HASHBYTES]);
 
 newtype_clone!(Digest);
 newtype_impl!(Digest, HASHBYTES);
+non_secret_newtype_impl!(Digest);
 
 /// Key
 ///
@@ -51,6 +52,7 @@ pub fn shorthash(m: &[u8],
 #[cfg(test)]
 mod test {
     use super::*;
+    use test_utils::round_trip;
 
     #[test]
     fn test_vectors() {
@@ -127,6 +129,18 @@ mod test {
         for i in (0usize..maxlen) {
             let Digest(h) = shorthash(&m[..i], &k);
             assert!(h == h_expecteds[i]);
+        }
+    }
+
+    #[test]
+    fn test_serialisation() {
+        use randombytes::randombytes;
+        for i in (0..64usize) {
+            let k = gen_key();
+            let m = randombytes(i);
+            let d = shorthash(&m[..], &k);
+            round_trip(k);
+            round_trip(d);
         }
     }
 }

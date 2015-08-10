@@ -18,7 +18,9 @@ include!("src/crypto_box_curve25519xsalsa20poly1305.rs");
 include!("src/crypto_core_hsalsa20.rs");
 include!("src/crypto_core_salsa20.rs");
 include!("src/crypto_core_salsa2012.rs");
+include!("src/crypto_core_salsa208.rs");
 
+include!("src/crypto_generichash.rs");
 include!("src/crypto_generichash_blake2b.rs");
 
 include!("src/crypto_hash.rs");
@@ -30,7 +32,9 @@ include!("src/crypto_onetimeauth_poly1305.rs");
 
 include!("src/crypto_pwhash_scryptsalsa208sha256.rs");
 
+include!("src/crypto_scalarmult.rs");
 include!("src/crypto_scalarmult_curve25519.rs");
+
 include!("src/crypto_secretbox_xsalsa20poly1305.rs");
 include!("src/crypto_shorthash_siphash24.rs");
 include!("src/crypto_sign_ed25519.rs");
